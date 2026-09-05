@@ -1,0 +1,63 @@
+flowchart TD
+    subgraph IN["1 · Input (PhotoKit)"]
+        A["Date range from Scan tab"] --> B["PHAsset.fetchAssets<br/>images only, creationDate in range,<br/>includeAllBurstAssets = true, sorted by date"]
+        B --> B2["Load WhatsApp album IDs into a Set<br/>(bonus signal — a missing album is fine,<br/>the EXIF rule below still catches them)"]
+    end
+
+    C{"Cached AssetRecord exists<br/>and modificationDate unchanged?"}
+    M["Reuse cached AssetMetrics"]
+
+    subgraph AN["2 · Analyse — per asset, 3 in flight, all on device"]
+        D["PhotoKit metadata<br/>screenshot flag · favorite · burstIdentifier · file type"] --> E["EXIF probe — JPEG/PNG only<br/>camera Make/Model present?<br/>(HEIC = assumed from camera)"]
+        E --> F["Load 1024px image via PHCachingImageManager"]
+        F --> G["Vision<br/>Feature print = similarity vector<br/>Aesthetics score + isUtility flag<br/>Face capture quality per face"]
+        G --> H["Core Image CIDetector<br/>eyes open / smile per face"]
+        H --> I["OCR, only if utility or no faces<br/>textCharCount"]
+        I --> J["AssetMetrics → SwiftData cache"]
+    end
+
+    K["Classifier (Core, pure Swift)<br/>rules in order → category + reason"]
+    CL["Clutter list<br/>default = delete, own review sections"]
+
+    subgraph GR["3 · Group and score (Core, pure Swift, unit-tested)"]
+        L["Grouper<br/>same burstIdentifier → burst group"] --> N["Time buckets<br/>gap > 120 s starts a new bucket"]
+        N --> O["Pairwise feature-print distance inside a bucket<br/>distance ≤ threshold → union-find → similar group<br/>singletons = keep, never shown"]
+        O --> P["Scorer per member<br/>0.40 faceQ + 0.25 aesthetics + 0.20 eyesOpen<br/>+ 0.10 smile + 0.05 resolution · favorite +1.0"]
+        P --> Q{"Top two within 0.05?"}
+        Q -->|"Yes, Claude on"| R["Claude API tie-breaker<br/>≤ 6 JPEGs at 768px → JSON winner + reason"]
+        Q -->|"Yes, Claude off or error"| S["Local tie-break<br/>higher aesthetics, then earlier photo"]
+        Q -->|"No"| T
+        R --> T["Decisions<br/>keeper = keep, rest = delete,<br/>every one with a reason string"]
+        S --> T
+    end
+
+    U["SwiftData: ScanSession · PhotoGroup · Decision"]
+    V["Review UI<br/>overrides saved with source = user,<br/>never re-scored on later scans"]
+    W["Apply<br/>re-fetch by localIdentifier · drop favorites and changed assets<br/>ONE PHAssetChangeRequest.deleteAssets call"]
+    X["iOS system confirmation dialog"]
+    Y["Photos → Recently Deleted<br/>30-day undo"]
+    Z["AuditEntry + JSON/CSV export"]
+
+    B2 --> C
+    C -->|"Yes"| M
+    C -->|"No"| D
+    J --> M
+    M --> K
+    K -->|"screenshot"| CL
+    K -->|"received + text or utility"| CL
+    K -->|"utility: document / receipt"| CL
+    K -->|"personal · received photo"| L
+    CL --> U
+    T --> U
+    U --> V
+    V --> W
+    W --> X
+    X --> Y
+    X --> Z
+
+    classDef del fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef safe fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+    classDef cloud fill:#fef3c7,stroke:#d97706,color:#78350f
+    class CL,W del
+    class Y,Z safe
+    class R cloud

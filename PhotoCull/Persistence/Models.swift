@@ -1,0 +1,138 @@
+import Foundation
+import SwiftData
+
+// Spec §7. Scalars only: feature prints never touch the store.
+
+/// Analysis cache. Survives sessions so a re-scan only processes new or changed assets.
+@Model
+final class AssetRecord {
+    @Attribute(.unique) var localIdentifier: String
+    /// Recompute when `PHAsset.modificationDate` differs.
+    var modificationDate: Date?
+    /// `AssetMetrics` as JSON.
+    var metricsJSON: Data
+    var category: String
+    var categoryReason: String
+    var analyzedAt: Date
+
+    init(localIdentifier: String, modificationDate: Date?, metricsJSON: Data, category: String, categoryReason: String, analyzedAt: Date = .now) {
+        self.localIdentifier = localIdentifier
+        self.modificationDate = modificationDate
+        self.metricsJSON = metricsJSON
+        self.category = category
+        self.categoryReason = categoryReason
+        self.analyzedAt = analyzedAt
+    }
+}
+
+enum ScanStatus {
+    static let running = "running"
+    static let cancelled = "cancelled"
+    static let completed = "completed"
+    static let applied = "applied"
+}
+
+@Model
+final class ScanSession {
+    @Attribute(.unique) var id: UUID
+    var startDate: Date
+    var endDate: Date
+    var createdAt: Date
+    var status: String
+    /// `Thresholds` snapshot as JSON.
+    var thresholdsJSON: Data
+    @Relationship(deleteRule: .cascade, inverse: \PhotoGroup.session) var groups: [PhotoGroup]
+    @Relationship(deleteRule: .cascade, inverse: \Decision.session) var decisions: [Decision]
+
+    init(id: UUID = UUID(), startDate: Date, endDate: Date, createdAt: Date = .now, status: String = ScanStatus.running, thresholdsJSON: Data) {
+        self.id = id
+        self.startDate = startDate
+        self.endDate = endDate
+        self.createdAt = createdAt
+        self.status = status
+        self.thresholdsJSON = thresholdsJSON
+        self.groups = []
+        self.decisions = []
+    }
+}
+
+@Model
+final class PhotoGroup {
+    @Attribute(.unique) var id: UUID
+    /// `GroupKind` raw value: burst | similar.
+    var kind: String
+    var memberIDs: [String]
+    var keeperID: String
+    /// `[MemberScore]` as JSON.
+    var scoresJSON: Data
+    var isTie: Bool
+    var claudeReason: String?
+    var claudeError: String?
+    var session: ScanSession?
+
+    init(id: UUID = UUID(), kind: String, memberIDs: [String], keeperID: String, scoresJSON: Data, isTie: Bool, claudeReason: String? = nil, claudeError: String? = nil) {
+        self.id = id
+        self.kind = kind
+        self.memberIDs = memberIDs
+        self.keeperID = keeperID
+        self.scoresJSON = scoresJSON
+        self.isTie = isTie
+        self.claudeReason = claudeReason
+        self.claudeError = claudeError
+    }
+}
+
+@Model
+final class Decision {
+    @Attribute(.unique) var id: UUID
+    var assetID: String
+    /// `CullAction` raw value: keep | delete.
+    var action: String
+    /// `DecisionSource` raw value: auto | user | claude. User decisions are never re-scored.
+    var source: String
+    var reason: String
+    var groupID: UUID?
+    /// `AssetCategory` raw value.
+    var category: String
+    var session: ScanSession?
+
+    init(id: UUID = UUID(), assetID: String, action: String, source: String, reason: String, groupID: UUID? = nil, category: String) {
+        self.id = id
+        self.assetID = assetID
+        self.action = action
+        self.source = source
+        self.reason = reason
+        self.groupID = groupID
+        self.category = category
+    }
+}
+
+@Model
+final class AuditEntry {
+    @Attribute(.unique) var id: UUID
+    var sessionID: UUID
+    var appliedAt: Date
+    var deletedIDs: [String]
+    var keptIDs: [String]
+    var summaryJSON: Data
+
+    init(id: UUID = UUID(), sessionID: UUID, appliedAt: Date = .now, deletedIDs: [String], keptIDs: [String], summaryJSON: Data) {
+        self.id = id
+        self.sessionID = sessionID
+        self.appliedAt = appliedAt
+        self.deletedIDs = deletedIDs
+        self.keptIDs = keptIDs
+        self.summaryJSON = summaryJSON
+    }
+}
+
+extension ModelContainer {
+    static let photoCullSchema = Schema([
+        AssetRecord.self, ScanSession.self, PhotoGroup.self, Decision.self, AuditEntry.self,
+    ])
+
+    static func photoCull(inMemory: Bool = false) throws -> ModelContainer {
+        let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
+        return try ModelContainer(for: photoCullSchema, configurations: [config])
+    }
+}

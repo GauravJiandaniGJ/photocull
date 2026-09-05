@@ -1,0 +1,66 @@
+# Regenerate the Xcode project with `xcodegen generate` (the .xcodeproj is git-ignored).
+name: PhotoCull
+options:
+  bundleIdPrefix: com.vandnajiandani
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+  xcodeVersion: "16.0"
+
+settings:
+  base:
+    # Swift 5 language mode with strict-concurrency warnings, deliberately not Swift 6 mode (spec §2).
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    # Paid team (same one as the Coach JI app). Automatic signing handles device provisioning.
+    DEVELOPMENT_TEAM: D4U39723T4
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: 1
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+packages:
+  PhotoCullCore:
+    path: Packages/PhotoCullCore
+
+targets:
+  PhotoCull:
+    type: application
+    platform: iOS
+    sources:
+      - path: PhotoCull
+    dependencies:
+      - package: PhotoCullCore
+    info:
+      path: PhotoCull/Info.plist
+      properties:
+        CFBundleDisplayName: PhotoCull
+        NSPhotoLibraryUsageDescription: "PhotoCull analyses your photos on this phone to find near-duplicates and clutter, and deletes only what you approve."
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # Pre-answers the App Store Connect export-compliance question.
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vandnajiandani.photocull
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+schemes:
+  PhotoCull:
+    build:
+      targets:
+        PhotoCull: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - package: PhotoCullCore/PhotoCullCoreTests
+    archive:
+      config: Release

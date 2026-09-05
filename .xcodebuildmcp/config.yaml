@@ -1,0 +1,5 @@
+# XcodeBuildMCP workspace config (read at server startup — restart the session to apply).
+# simulator: build/boot/install/launch/screenshot for Core tests and UI layout.
+# device: build/install/launch on the paired iPhones — Vision results must be judged on hardware.
+# swift-package: run PhotoCullCore tests through the MCP.
+enabledWorkflows: ["simulator", "device", "swift-package"]

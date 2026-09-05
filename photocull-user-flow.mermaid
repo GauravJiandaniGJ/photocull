@@ -1,0 +1,23 @@
+flowchart TD
+    A["Install PhotoCull from Xcode<br/>(same build on both phones)"] --> B["First launch:<br/>allow Full Access to Photos"]
+    B --> C["Scan tab<br/>Range: Last 3 months<br/>Toggles: WhatsApp · Screenshots · Claude tie-breaker"]
+    C --> D["Tap Scan<br/>Progress: Analysing 1,240 / 4,310<br/>~15–25 min, screen stays awake, cancel any time"]
+    D --> E["Summary card<br/>38 groups (190 photos → 38 keepers)<br/>412 screenshots · 260 WhatsApp forwards · 14 documents<br/>Nothing deleted yet"]
+    E --> F["Groups tab<br/>Keeper in green, others dimmed with a one-line reason<br/>Tap a group to compare full-size"]
+    F --> F1{"Agree with the pick?"}
+    F1 -->|"No"| F2["Tap another photo → Make keeper<br/>or Keep all"]
+    F2 --> F
+    F1 -->|"Yes"| G["Clutter tab<br/>Screenshots · Received text/docs · Received photos · Documents<br/>Tick / untick, Select all per section"]
+    G --> H["Apply tab<br/>Move 731 photos to Recently Deleted"]
+    H --> I["In-app confirm → iOS dialog:<br/>Allow PhotoCull to delete 731 photos?"]
+    I --> J["Done screen<br/>Export log: what was kept / deleted and why"]
+    J --> K["Safety net: Photos → Albums → Recently Deleted<br/>30 days to restore anything"]
+    K --> L["Next month: Scan again<br/>Only new photos are analysed"]
+    L --> C
+
+    classDef keep fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef del fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef safe fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+    class F,G keep
+    class H,I del
+    class K safe
