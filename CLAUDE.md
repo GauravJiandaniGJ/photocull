@@ -10,7 +10,7 @@ Personal iOS photo-culling app for two phones (iPhone 17 Pro Max primary, iPhone
 
 ## Current state
 
-Milestones 1–5 (§11) are built and installed on the 17 Pro Max; milestone 6 (second phone, 6-month scans) is still to do.
+Milestones 1–5 (§11) are built; build 2 is installed on both phones (17 Pro Max on iOS 27.0, 15 Pro on iOS 26.6). Milestone 6 remaining: calibrate on the 15 Pro, then 6-month scans on both and any performance fixes.
 
 - `Packages/PhotoCullCore` is complete against §5: Thresholds, AssetMetrics, Classifier, Grouper, Scorer, Planner, TieBreakVerdict, with 55 passing tests covering §10.
 - Milestone 1 in the app target: `VisionFeatureExtractor` (feature print, aesthetics, face capture quality, CIDetector eyes/smile, EXIF probe, gated OCR), `ScanController` (fetch → cache lookup → 3-wide TaskGroup → Planner → SwiftData session), scan progress and summary on the Scan tab, Debug → raw metrics table, Calibrate histogram with threshold slider and group preview, CSV export, per-request timings.
@@ -71,7 +71,7 @@ Things that are easy to get wrong across files:
 ## Signing and devices
 
 - Team `D4U39723T4` (the paid team), bundle id `com.vandnajiandani.photocull`, automatic signing. Both live in `project.yml`; change them there, not in the generated project.
-- Only an iPhone 12 mini is paired with this Mac so far; the two target phones need a first USB pair + Developer Mode before `scripts/deploy-phone.sh` can see them (see `phone-deploy`).
+- Both target phones are paired and registered; `scripts/deploy-phone.sh --list` prints their UDIDs. With both connected, pass `DEVICE_UDID` to the script; the phones run different iOS versions, so calibrate each separately.
 - `CURRENT_PROJECT_VERSION` in `project.yml` must be bumped before every TestFlight upload.
 
 ## Safety rules (§8, non-negotiable)
