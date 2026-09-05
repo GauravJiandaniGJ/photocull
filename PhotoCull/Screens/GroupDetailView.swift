@@ -8,6 +8,7 @@ struct GroupDetailView: View {
     let decisions: [String: Decision]
     @Environment(\.modelContext) private var context
     @State private var selection: String
+    @State private var playing = false
 
     init(group: PhotoGroup, decisions: [String: Decision]) {
         self.group = group
@@ -33,6 +34,22 @@ struct GroupDetailView: View {
                 .tabViewStyle(.page(indexDisplayMode: .always))
                 .frame(height: 440)
                 .background(Color.black)
+                .overlay(alignment: .bottomTrailing) {
+                    if group.isVideo {
+                        Button {
+                            playing = true
+                        } label: {
+                            Label("Play", systemImage: "play.circle.fill")
+                                .font(.headline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(.ultraThinMaterial, in: Capsule())
+                        }
+                        .padding(16)
+                        .padding(.bottom, 16)
+                    }
+                }
+                .fullScreenCover(isPresented: $playing) { VideoPlayerSheet(id: selection) }
 
                 // Scrollable, so a 14-photo group cannot widen the panel and push the text off-screen.
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -91,6 +108,12 @@ struct GroupDetailView: View {
     private func scoreBreakdown(_ s: MemberScore) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             LabeledContent("Score", value: s.score, format: .number.precision(.fractionLength(2)))
+            if s.isVideo {
+                if let w = s.pixelWidth, let h = s.pixelHeight { LabeledContent("Resolution", value: "\(w)×\(h)") }
+                if let size = s.fileSizeBytes { LabeledContent("File size", value: MediaFormat.bytes(size)) }
+                if let d = s.duration { LabeledContent("Length", value: MediaFormat.clock(d)) }
+                if s.isFavorite { LabeledContent("Favorite", value: "protected") }
+            } else {
             LabeledContent("Aesthetics", value: s.aesthetics, format: .number.precision(.fractionLength(2)))
             if let fq = s.faceQuality {
                 LabeledContent("Face quality", value: fq, format: .number.precision(.fractionLength(2)))
@@ -111,6 +134,7 @@ struct GroupDetailView: View {
             }
             LabeledContent("Resolution", value: s.resolution == 1 ? "highest in group" : "lower")
             if s.isFavorite { LabeledContent("Favorite", value: "protected") }
+            }
         }
         .font(.subheadline)
     }

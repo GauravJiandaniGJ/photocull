@@ -51,28 +51,32 @@ public struct Planner: Sendable {
             .groups(for: candidates, distance: distance)
             .map { scorer.score(group: $0, metrics: byID) }
 
+        let decisions = Self.decisions(orderedIDs: ordered.map(\.id), classifications: classifications, groups: groups)
+        return ScanPlan(classifications: classifications, groups: groups, decisions: decisions)
+    }
+
+    /// One decision per asset: keepers keep, other group members delete unless protected,
+    /// everything else follows its classification. Shared with `VideoPlanner`.
+    static func decisions(orderedIDs: [String], classifications: [String: Classification], groups: [ScoredGroup]) -> [ProposedDecision] {
         var groupIndexByAsset: [String: Int] = [:]
         for (i, g) in groups.enumerated() {
             for id in g.memberIDs { groupIndexByAsset[id] = i }
         }
-
-        let decisions: [ProposedDecision] = ordered.map { m in
-            let c = classifications[m.id]!
-            if let gi = groupIndexByAsset[m.id] {
+        return orderedIDs.compactMap { id in
+            guard let c = classifications[id] else { return nil }
+            if let gi = groupIndexByAsset[id] {
                 let g = groups[gi]
-                let reason = g.reasons[m.id] ?? "Group member"
-                if m.id == g.keeperID {
-                    return ProposedDecision(assetID: m.id, action: .keep, source: .auto, reason: reason, groupIndex: gi, category: c.category)
+                let reason = g.reasons[id] ?? "Group member"
+                if id == g.keeperID {
+                    return ProposedDecision(assetID: id, action: .keep, source: .auto, reason: reason, groupIndex: gi, category: c.category)
                 }
                 if c.isProtected {
-                    return ProposedDecision(assetID: m.id, action: .keep, source: .auto, reason: "Favorite (protected)", groupIndex: gi, category: c.category)
+                    return ProposedDecision(assetID: id, action: .keep, source: .auto, reason: "Favorite (protected)", groupIndex: gi, category: c.category)
                 }
-                return ProposedDecision(assetID: m.id, action: .delete, source: .auto, reason: reason, groupIndex: gi, category: c.category)
+                return ProposedDecision(assetID: id, action: .delete, source: .auto, reason: reason, groupIndex: gi, category: c.category)
             }
             let action: CullAction = c.isProtected ? .keep : c.defaultAction
-            return ProposedDecision(assetID: m.id, action: action, source: .auto, reason: c.reason, groupIndex: nil, category: c.category)
+            return ProposedDecision(assetID: id, action: action, source: .auto, reason: c.reason, groupIndex: nil, category: c.category)
         }
-
-        return ScanPlan(classifications: classifications, groups: groups, decisions: decisions)
     }
 }

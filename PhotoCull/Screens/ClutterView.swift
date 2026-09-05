@@ -14,6 +14,9 @@ struct ClutterView: View {
         (.receivedUtility, "Received (text/documents)"),
         (.receivedPhoto, "Received photos"),
         (.utility, "Documents/receipts"),
+        (.screenRecording, "Screen recordings"),
+        (.receivedVideo, "Received videos"),
+        (.personalVideo, "Videos, largest first"),
     ]
 
     private let columns = [GridItem(.adaptive(minimum: 100), spacing: 4)]
@@ -27,7 +30,13 @@ struct ClutterView: View {
             guard let category = AssetCategory(rawValue: d.category), category != .personal else { continue }
             out[category, default: []].append(d)
         }
-        for key in out.keys { out[key]?.sort { $0.creationDate > $1.creationDate } }
+        for key in out.keys {
+            if key == .personalVideo {
+                out[key]?.sort { $0.fileSize != $1.fileSize ? $0.fileSize > $1.fileSize : $0.creationDate > $1.creationDate }
+            } else {
+                out[key]?.sort { $0.creationDate > $1.creationDate }
+            }
+        }
         return out
     }
 
@@ -91,17 +100,23 @@ struct ClutterView: View {
     }
 
     private func sectionHeader(title: String, items: [Decision]) -> some View {
-        let deleting = items.filter(\.isDelete).count
+        let deleting = items.filter(\.isDelete)
+        let bytes = deleting.reduce(Int64(0)) { $0 + $1.fileSize }
+        let total = items.reduce(Int64(0)) { $0 + $1.fileSize }
         return HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(title) · \(items.count.formatted())").font(.headline)
-                Text("\(deleting.formatted()) to delete").font(.caption).foregroundStyle(.secondary)
+                if items.first?.isVideo == true {
+                    Text("\(deleting.count.formatted()) to delete · \(MediaFormat.bytes(bytes)) of \(MediaFormat.bytes(total))").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("\(deleting.count.formatted()) to delete").font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer()
             Button("Select all") { Review.setAll(items, to: .delete, context: context) }
-                .disabled(deleting == items.count)
+                .disabled(deleting.count == items.count)
             Button("Deselect all") { Review.setAll(items, to: .keep, context: context) }
-                .disabled(deleting == 0)
+                .disabled(deleting.isEmpty)
         }
         .font(.subheadline)
         .padding(.horizontal)
@@ -134,9 +149,21 @@ struct ClutterCell: View {
                 .disabled(decision.isProtected)
             }
             .overlay(alignment: .bottomLeading) {
-                if decision.isProtected {
-                    Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow).padding(6)
+                HStack(spacing: 4) {
+                    if decision.isProtected {
+                        Image(systemName: "star.fill").foregroundStyle(.yellow)
+                    }
+                    if decision.isVideo {
+                        Image(systemName: "play.fill")
+                        Text("\(MediaFormat.clock(decision.duration)) · \(MediaFormat.bytes(decision.fileSize))")
+                    }
                 }
+                .font(.caption2.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(.black.opacity(0.55), in: Capsule())
+                .padding(4)
             }
     }
 }
@@ -149,12 +176,21 @@ struct ClutterDetailSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                AssetImage(id: decision.assetID)
-                    .frame(maxHeight: .infinity)
-                    .background(Color.black)
+                if decision.isVideo {
+                    VideoPlayerView(id: decision.assetID)
+                        .frame(maxHeight: .infinity)
+                } else {
+                    AssetImage(id: decision.assetID)
+                        .frame(maxHeight: .infinity)
+                        .background(Color.black)
+                }
                 Form {
                     LabeledContent("Category", value: decision.category)
                     LabeledContent("Reason", value: decision.reason)
+                    if decision.isVideo {
+                        LabeledContent("Length", value: MediaFormat.clock(decision.duration))
+                        LabeledContent("Size", value: MediaFormat.bytes(decision.fileSize))
+                    }
                     LabeledContent("Taken", value: decision.creationDate, format: .dateTime.day().month().year().hour().minute())
                     Picker("Decision", selection: Binding(
                         get: { decision.isDelete ? CullAction.delete : CullAction.keep },

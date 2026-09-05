@@ -15,8 +15,14 @@ public struct MemberScore: Codable, Equatable, Sendable {
     public let faceCount: Int
     public let closedEyesFaceCount: Int
     public let isFavorite: Bool
+    // Video members only (nil for photos).
+    public var duration: Double? = nil
+    public var fileSizeBytes: Int64? = nil
+    public var pixelWidth: Int? = nil
+    public var pixelHeight: Int? = nil
 
     public var hasFaces: Bool { faceCount > 0 }
+    public var isVideo: Bool { duration != nil }
 }
 
 public enum LocalTieBreak: String, Codable, Equatable, Sendable {
@@ -36,6 +42,16 @@ public struct ScoredGroup: Codable, Equatable, Sendable {
     public let localTieBreak: LocalTieBreak?
     /// assetID → non-empty reason (safety rule 5).
     public let reasons: [String: String]
+
+    public init(kind: GroupKind, memberIDs: [String], scores: [MemberScore], keeperID: String, isTie: Bool, localTieBreak: LocalTieBreak?, reasons: [String: String]) {
+        self.kind = kind
+        self.memberIDs = memberIDs
+        self.scores = scores
+        self.keeperID = keeperID
+        self.isTie = isTie
+        self.localTieBreak = localTieBreak
+        self.reasons = reasons
+    }
 
     public var loserIDs: [String] { memberIDs.filter { $0 != keeperID } }
     public func score(for id: String) -> MemberScore? { scores.first { $0.assetID == id } }

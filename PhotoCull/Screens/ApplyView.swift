@@ -12,7 +12,9 @@ struct ApplyView: View {
     private var session: ScanSession? { sessions.first }
     private var decisions: [Decision] { session?.decisions ?? [] }
     private var toDelete: [Decision] { decisions.filter { $0.isDelete && !$0.isProtected } }
-    private var fromGroups: Int { toDelete.filter { $0.groupID != nil }.count }
+    private var fromGroups: Int { toDelete.filter { $0.groupID != nil && !$0.isVideo }.count }
+    private var fromVideoGroups: Int { toDelete.filter { $0.groupID != nil && $0.isVideo }.count }
+    private var bytesToFree: Int64 { toDelete.reduce(Int64(0)) { $0 + $1.fileSize } }
     private var isApplied: Bool { session?.status == ScanStatus.applied }
 
     private func clutterCount(_ category: AssetCategory) -> Int {
@@ -37,7 +39,12 @@ struct ApplyView: View {
                         LabeledContent("Received (text/documents)", value: clutterCount(.receivedUtility), format: .number)
                         LabeledContent("Received photos", value: clutterCount(.receivedPhoto), format: .number)
                         LabeledContent("Documents/receipts", value: clutterCount(.utility), format: .number)
+                        LabeledContent("From video duplicates/takes", value: fromVideoGroups, format: .number)
+                        LabeledContent("Screen recordings", value: clutterCount(.screenRecording), format: .number)
+                        LabeledContent("Received videos", value: clutterCount(.receivedVideo), format: .number)
+                        LabeledContent("Videos", value: clutterCount(.personalVideo), format: .number)
                         LabeledContent("Total") { Text(toDelete.count, format: .number).bold() }
+                        LabeledContent("Video space to free", value: MediaFormat.bytes(bytesToFree))
                     }
 
                     Section("Kept") {

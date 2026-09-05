@@ -117,7 +117,7 @@ struct GroupRow: View {
                 }
             }
             HStack(spacing: 8) {
-                Text("\(group.memberIDs.count) photos · \(group.kind) · \(group.earliestDate, format: .dateTime.day().month().year())")
+                Text("\(group.memberIDs.count) \(group.isVideo ? "videos" : "photos") · \(group.kind) · \(group.earliestDate, format: .dateTime.day().month().year())")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -158,6 +158,17 @@ struct MemberThumbnail: View {
             .overlay(alignment: .topTrailing) {
                 if decision?.isProtected == true {
                     Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow).padding(4)
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if let decision, decision.isVideo {
+                    Label(MediaFormat.clock(decision.duration), systemImage: "play.fill")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(.black.opacity(0.55), in: Capsule())
+                        .padding(4)
                 }
             }
             .overlay {

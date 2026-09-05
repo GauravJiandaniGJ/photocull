@@ -45,6 +45,8 @@ final class ThresholdsStore {
         if a.visionLongEdge != b.visionLongEdge { parts.append("vision edge \(a.visionLongEdge) → \(b.visionLongEdge)") }
         if a.claudeImageLongEdge != b.claudeImageLongEdge { parts.append("Claude image edge \(a.claudeImageLongEdge) → \(b.claudeImageLongEdge)") }
         if a.claudeMaxImagesPerGroup != b.claudeMaxImagesPerGroup { parts.append("Claude max images \(a.claudeMaxImagesPerGroup) → \(b.claudeMaxImagesPerGroup)") }
+        if a.videoSimilarityDistanceMax != b.videoSimilarityDistanceMax { parts.append("video similarity \(a.videoSimilarityDistanceMax) → \(b.videoSimilarityDistanceMax)") }
+        if a.videoDurationTolerance != b.videoDurationTolerance { parts.append("video duration tolerance \(a.videoDurationTolerance) → \(b.videoDurationTolerance)") }
         return parts.isEmpty ? nil : "Thresholds changed: " + parts.joined(separator: ", ")
     }
 

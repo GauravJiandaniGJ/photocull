@@ -15,14 +15,17 @@ final class AssetRecord {
     var category: String
     var categoryReason: String
     var analyzedAt: Date
+    /// image | video — decides how `metricsJSON` is decoded.
+    var mediaType: String = "image"
 
-    init(localIdentifier: String, modificationDate: Date?, metricsJSON: Data, category: String, categoryReason: String, analyzedAt: Date = .now) {
+    init(localIdentifier: String, modificationDate: Date?, metricsJSON: Data, category: String, categoryReason: String, analyzedAt: Date = .now, mediaType: String = "image") {
         self.localIdentifier = localIdentifier
         self.modificationDate = modificationDate
         self.metricsJSON = metricsJSON
         self.category = category
         self.categoryReason = categoryReason
         self.analyzedAt = analyzedAt
+        self.mediaType = mediaType
     }
 }
 
@@ -80,9 +83,11 @@ final class PhotoGroup {
     var keeperSource: String = DecisionSource.auto.rawValue
     /// Creation date of the earliest member, for newest-first ordering.
     var earliestDate: Date = Date.distantPast
+    /// image | video
+    var mediaType: String = "image"
     var session: ScanSession?
 
-    init(id: UUID = UUID(), kind: String, memberIDs: [String], keeperID: String, scoresJSON: Data, isTie: Bool, keeperSource: String = DecisionSource.auto.rawValue, earliestDate: Date = .distantPast, claudeReason: String? = nil, claudeError: String? = nil) {
+    init(id: UUID = UUID(), kind: String, memberIDs: [String], keeperID: String, scoresJSON: Data, isTie: Bool, keeperSource: String = DecisionSource.auto.rawValue, earliestDate: Date = .distantPast, mediaType: String = "image", claudeReason: String? = nil, claudeError: String? = nil) {
         self.id = id
         self.kind = kind
         self.memberIDs = memberIDs
@@ -91,12 +96,14 @@ final class PhotoGroup {
         self.isTie = isTie
         self.keeperSource = keeperSource
         self.earliestDate = earliestDate
+        self.mediaType = mediaType
         self.claudeReason = claudeReason
         self.claudeError = claudeError
     }
 
     var scores: [MemberScore] { (try? JSONDecoder().decode([MemberScore].self, from: scoresJSON)) ?? [] }
     var isUserKeeper: Bool { keeperSource == DecisionSource.user.rawValue }
+    var isVideo: Bool { mediaType == "video" }
 }
 
 @Model
@@ -115,9 +122,14 @@ final class Decision {
     var isProtected: Bool = false
     /// Asset creation date, for newest-first ordering in review screens.
     var creationDate: Date = Date.distantPast
+    /// image | video
+    var mediaType: String = "image"
+    /// Videos only: bytes on disk (0 when unknown) and length in seconds.
+    var fileSize: Int64 = 0
+    var duration: Double = 0
     var session: ScanSession?
 
-    init(id: UUID = UUID(), assetID: String, action: String, source: String, reason: String, groupID: UUID? = nil, category: String, isProtected: Bool = false, creationDate: Date = .distantPast) {
+    init(id: UUID = UUID(), assetID: String, action: String, source: String, reason: String, groupID: UUID? = nil, category: String, isProtected: Bool = false, creationDate: Date = .distantPast, mediaType: String = "image", fileSize: Int64 = 0, duration: Double = 0) {
         self.id = id
         self.assetID = assetID
         self.action = action
@@ -127,10 +139,14 @@ final class Decision {
         self.category = category
         self.isProtected = isProtected
         self.creationDate = creationDate
+        self.mediaType = mediaType
+        self.fileSize = fileSize
+        self.duration = duration
     }
 
     var isDelete: Bool { action == CullAction.delete.rawValue }
     var isUserDecision: Bool { source == DecisionSource.user.rawValue }
+    var isVideo: Bool { mediaType == "video" }
 }
 
 @Model

@@ -28,6 +28,8 @@ struct SettingsView: View {
                     ThresholdRow("Vision long edge", value: $store.thresholds.visionLongEdge, default: Thresholds.default.visionLongEdge)
                     ThresholdRow("Claude image long edge", value: $store.thresholds.claudeImageLongEdge, default: Thresholds.default.claudeImageLongEdge)
                     ThresholdRow("Claude max images", value: $store.thresholds.claudeMaxImagesPerGroup, default: Thresholds.default.claudeMaxImagesPerGroup)
+                    ThresholdRow("Video similarity max", value: $store.thresholds.videoSimilarityDistanceMax, default: Thresholds.default.videoSimilarityDistanceMax)
+                    ThresholdRow("Video duration tolerance", value: $store.thresholds.videoDurationTolerance, default: Thresholds.default.videoDurationTolerance)
                     Button("Reset all to defaults", role: .destructive) { store.reset() }
                 }
 

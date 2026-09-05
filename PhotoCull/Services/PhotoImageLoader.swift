@@ -1,3 +1,4 @@
+import AVFoundation
 import Photos
 import UIKit
 
@@ -31,6 +32,22 @@ enum PhotoImageLoader {
         options.resizeMode = .fast
         options.isNetworkAccessAllowed = true
         return await request(asset: asset, size: CGSize(width: side, height: side), contentMode: .aspectFill, options: options, manager: thumbnailManager)
+    }
+
+    /// Playable item for the review screens (iCloud download allowed: the user asked to watch it).
+    static func playerItem(id: String) async -> AVPlayerItem? {
+        guard let asset = PhotoLibraryService.asset(withID: id) else { return nil }
+        let options = PHVideoRequestOptions()
+        options.isNetworkAccessAllowed = true
+        options.deliveryMode = .automatic
+        let once = Locked(false)
+        return await withCheckedContinuation { (continuation: CheckedContinuation<AVPlayerItem?, Never>) in
+            PHImageManager.default().requestPlayerItem(forVideo: asset, options: options) { item, _ in
+                if once.with({ done -> Bool in defer { done = true }; return !done }) {
+                    continuation.resume(returning: item)
+                }
+            }
+        }
     }
 
     /// Full-size image data, for the EXIF probe.

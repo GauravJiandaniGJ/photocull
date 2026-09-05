@@ -10,7 +10,7 @@ Personal iOS photo-culling app for two phones (iPhone 17 Pro Max primary, iPhone
 
 ## Current state
 
-Milestones 1–5 (§11) are built; build 2 is installed on both phones (17 Pro Max on iOS 27.0, 15 Pro on iOS 26.6). Milestone 6 remaining: calibrate on the 15 Pro, then 6-month scans on both and any performance fixes.
+Milestones 1–5 and 7 (§11 + videos) are built; build 4 is installed on both phones (17 Pro Max on iOS 27.0, 15 Pro on iOS 26.6). Milestone 6 remaining: 6-month scans on both and any performance fixes.
 
 - `Packages/PhotoCullCore` is complete against §5: Thresholds, AssetMetrics, Classifier, Grouper, Scorer, Planner, TieBreakVerdict, with 55 passing tests covering §10.
 - Milestone 1 in the app target: `VisionFeatureExtractor` (feature print, aesthetics, face capture quality, CIDetector eyes/smile, EXIF probe, gated OCR), `ScanController` (fetch → cache lookup → 3-wide TaskGroup → Planner → SwiftData session), scan progress and summary on the Scan tab, Debug → raw metrics table, Calibrate histogram with threshold slider and group preview, CSV export, per-request timings.
@@ -21,7 +21,8 @@ Milestones 1–5 (§11) are built; build 2 is installed on both phones (17 Pro M
 - App icon is generated: `swift scripts/make-icon.swift PhotoCull/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png` (no alpha, as App Store Connect requires).
 - Also in place: Photos permission gate, five-tab shell, SwiftData models (§7), Settings (thresholds, Keychain-backed Claude key, cache clear, scan history).
 - Milestone 5: the tie-breaker is a post-scan, user-confirmed action, not part of the scan. `ClaudeSettings` (toggle, model, key presence) → `TieBreakButton` (renders only when `isAvailable`, shows a confirmation with photo count and estimated cost) → `TieBreakRunner.run` → `ClaudeTieBreaker.resolve` (the only `URLSession` use in the app). Candidates = `Scorer.tieCandidates` minus favorites, capped by `claudeMaxImagesPerGroup`; a verdict can only move the keeper within the tie; errors land on `PhotoGroup.claudeError`. Settings has "Test connection" (GET /v1/models/{id}, no tokens). Model ids: `claude-sonnet-5`, `claude-haiku-4-5`.
-- Not built yet: second-phone install and 6-month performance pass (6).
+- Milestone 7 (videos): `VideoMetrics`/`VideoClassifier`/`VideoGrouper`/`VideoScorer`/`VideoPlanner` in Core (exact duplicates by duration+size+dimensions across any time, then same-take similarity inside time buckets using mean sampled-frame distance gated by duration). `VideoFeatureExtractor` samples frames at 10/50/90 % with `AVAssetImageGenerator`, reads make/model metadata, flags screen recordings by exact iPhone screen dimensions, and never downloads from iCloud (`isNetworkAccessAllowed = false`; non-local videos get size 0 and no frames). `ScanController` runs photos then videos and saves `[PlanBundle]`; `PhotoGroup`/`Decision`/`AssetRecord` carry `mediaType`, decisions carry `fileSize`/`duration`. Clutter shows Screen recordings, Received videos and Videos-largest-first with sizes; group detail plays via `VideoPlayerSheet`.
+- Remaining from milestone 6: 6-month scans on both phones and any performance fixes.
 
 ## Commands
 

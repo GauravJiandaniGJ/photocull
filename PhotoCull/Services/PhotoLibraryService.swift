@@ -49,11 +49,11 @@ final class PhotoLibraryService {
 
     /// Images only, creation date in [start, end), user library, hidden excluded,
     /// every burst frame included so bursts can be grouped.
-    nonisolated static func fetchOptions(start: Date, end: Date) -> PHFetchOptions {
+    nonisolated static func fetchOptions(start: Date, end: Date, mediaType: PHAssetMediaType = .image) -> PHFetchOptions {
         let options = PHFetchOptions()
         options.predicate = NSPredicate(
             format: "mediaType == %d AND creationDate >= %@ AND creationDate < %@",
-            PHAssetMediaType.image.rawValue, start as NSDate, end as NSDate
+            mediaType.rawValue, start as NSDate, end as NSDate
         )
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
         options.includeAllBurstAssets = true
@@ -62,17 +62,17 @@ final class PhotoLibraryService {
         return options
     }
 
-    nonisolated static func fetchAssets(start: Date, end: Date) -> PHFetchResult<PHAsset> {
-        PHAsset.fetchAssets(with: fetchOptions(start: start, end: end))
+    nonisolated static func fetchAssets(start: Date, end: Date, mediaType: PHAssetMediaType = .image) -> PHFetchResult<PHAsset> {
+        PHAsset.fetchAssets(with: fetchOptions(start: start, end: end, mediaType: mediaType))
     }
 
-    nonisolated static func assetCount(start: Date, end: Date) -> Int {
-        fetchAssets(start: start, end: end).count
+    nonisolated static func assetCount(start: Date, end: Date, mediaType: PHAssetMediaType = .image) -> Int {
+        fetchAssets(start: start, end: end, mediaType: mediaType).count
     }
 
     /// Sendable snapshots of every asset in the range, in creation-date order.
-    nonisolated static func assetInfos(start: Date, end: Date) -> [AssetInfo] {
-        let result = fetchAssets(start: start, end: end)
+    nonisolated static func assetInfos(start: Date, end: Date, mediaType: PHAssetMediaType = .image) -> [AssetInfo] {
+        let result = fetchAssets(start: start, end: end, mediaType: mediaType)
         var infos: [AssetInfo] = []
         infos.reserveCapacity(result.count)
         result.enumerateObjects { asset, _, _ in infos.append(AssetInfo(asset)) }

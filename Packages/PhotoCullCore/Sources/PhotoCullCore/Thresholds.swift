@@ -23,6 +23,10 @@ public struct Thresholds: Codable, Equatable, Sendable {
     public var claudeImageLongEdge: Int
     /// Cap on images per tie-breaker call.
     public var claudeMaxImagesPerGroup: Int
+    /// Mean sampled-frame distance at or below which two videos are "the same take".
+    public var videoSimilarityDistanceMax: Float
+    /// Two videos are only compared when their durations differ by at most this fraction (or 1 s).
+    public var videoDurationTolerance: Float
 
     public init(
         groupTimeGapSeconds: TimeInterval = 120,
@@ -33,7 +37,9 @@ public struct Thresholds: Codable, Equatable, Sendable {
         whatsAppAlbumName: String = "WhatsApp",
         visionLongEdge: Int = 1024,
         claudeImageLongEdge: Int = 768,
-        claudeMaxImagesPerGroup: Int = 6
+        claudeMaxImagesPerGroup: Int = 6,
+        videoSimilarityDistanceMax: Float = 0.05,
+        videoDurationTolerance: Float = 0.2
     ) {
         self.groupTimeGapSeconds = groupTimeGapSeconds
         self.similarityDistanceMax = similarityDistanceMax
@@ -44,6 +50,8 @@ public struct Thresholds: Codable, Equatable, Sendable {
         self.visionLongEdge = visionLongEdge
         self.claudeImageLongEdge = claudeImageLongEdge
         self.claudeMaxImagesPerGroup = claudeMaxImagesPerGroup
+        self.videoSimilarityDistanceMax = videoSimilarityDistanceMax
+        self.videoDurationTolerance = videoDurationTolerance
     }
 
     public static let `default` = Thresholds()
@@ -53,6 +61,7 @@ public struct Thresholds: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case groupTimeGapSeconds, similarityDistanceMax, tieBreakMargin, minFaceAreaRatio
         case textHeavyCharCount, whatsAppAlbumName, visionLongEdge, claudeImageLongEdge, claudeMaxImagesPerGroup
+        case videoSimilarityDistanceMax, videoDurationTolerance
     }
 
     public init(from decoder: Decoder) throws {
@@ -67,5 +76,7 @@ public struct Thresholds: Codable, Equatable, Sendable {
         visionLongEdge = try c.decodeIfPresent(Int.self, forKey: .visionLongEdge) ?? d.visionLongEdge
         claudeImageLongEdge = try c.decodeIfPresent(Int.self, forKey: .claudeImageLongEdge) ?? d.claudeImageLongEdge
         claudeMaxImagesPerGroup = try c.decodeIfPresent(Int.self, forKey: .claudeMaxImagesPerGroup) ?? d.claudeMaxImagesPerGroup
+        videoSimilarityDistanceMax = try c.decodeIfPresent(Float.self, forKey: .videoSimilarityDistanceMax) ?? d.videoSimilarityDistanceMax
+        videoDurationTolerance = try c.decodeIfPresent(Float.self, forKey: .videoDurationTolerance) ?? d.videoDurationTolerance
     }
 }

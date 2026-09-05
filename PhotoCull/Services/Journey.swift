@@ -70,6 +70,7 @@ struct Journey {
     var clutterCount: Int { session.decisions.filter { $0.groupID == nil && $0.category != AssetCategory.personal.rawValue }.count }
     var clutterToDelete: Int { session.decisions.filter { $0.groupID == nil && $0.isDelete }.count }
     var deleteCandidates: Int { session.decisions.filter { $0.isDelete && !$0.isProtected }.count }
+    var bytesToFree: Int64 { session.decisions.filter { $0.isDelete && !$0.isProtected }.reduce(Int64(0)) { $0 + $1.fileSize } }
 
     func detail(for step: JourneyStep) -> String {
         switch step {
@@ -84,7 +85,8 @@ struct Journey {
             return "\(clutterCount.formatted()) items · \(clutterToDelete.formatted()) to delete"
         case .apply:
             if isApplied { return "Applied \(session.createdAt.formatted(.relative(presentation: .named)))" }
-            return "\(deleteCandidates.formatted()) photos to Recently Deleted"
+            let size = bytesToFree > 0 ? " · \(ByteCountFormatter.string(fromByteCount: bytesToFree, countStyle: .file)) of video" : ""
+            return "\(deleteCandidates.formatted()) items to Recently Deleted\(size)"
         }
     }
 }

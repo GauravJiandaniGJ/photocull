@@ -13,6 +13,8 @@ struct AssetInfo: Sendable, Identifiable, Equatable {
     let isScreenshot: Bool
     let burstIdentifier: String?
     let hasLocation: Bool
+    let isVideo: Bool
+    let duration: Double
 
     var pixelCount: Int { pixelWidth * pixelHeight }
 
@@ -26,5 +28,7 @@ struct AssetInfo: Sendable, Identifiable, Equatable {
         isScreenshot = asset.mediaSubtypes.contains(.photoScreenshot)
         burstIdentifier = asset.burstIdentifier
         hasLocation = asset.location != nil
+        isVideo = asset.mediaType == .video
+        duration = asset.duration
     }
 }

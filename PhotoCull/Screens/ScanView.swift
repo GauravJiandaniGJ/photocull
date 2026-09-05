@@ -18,9 +18,11 @@ struct ScanView: View {
     @AppStorage("scan.preset") private var presetRaw = RangePreset.threeMonths.rawValue
     @AppStorage("scan.includeWhatsApp") private var includeWhatsApp = true
     @AppStorage("scan.includeScreenshots") private var includeScreenshots = true
+    @AppStorage("scan.includeVideos") private var includeVideos = true
     @State private var customStart = Calendar.current.date(byAdding: .month, value: -3, to: .now) ?? .now
     @State private var customEnd = Date.now
     @State private var assetCount: Int?
+    @State private var videoCount: Int?
 
     private var preset: RangePreset { RangePreset(rawValue: presetRaw) ?? .threeMonths }
 
@@ -65,12 +67,20 @@ struct ScanView: View {
                             ProgressView()
                         }
                     }
+                    LabeledContent("Videos in range") {
+                        if let videoCount {
+                            Text(videoCount, format: .number)
+                        } else {
+                            ProgressView()
+                        }
+                    }
                 }
                 .disabled(scan.isRunning)
 
                 Section {
                     Toggle("WhatsApp album", isOn: $includeWhatsApp)
                     Toggle("Screenshots", isOn: $includeScreenshots)
+                    Toggle("Videos", isOn: $includeVideos)
                     if claude.hasKey {
                         @Bindable var claude = claude
                         Toggle("Claude tie-breaker", isOn: $claude.isEnabled)
@@ -96,7 +106,7 @@ struct ScanView: View {
                             Label("Scan", systemImage: "magnifyingglass")
                                 .frame(maxWidth: .infinity)
                         }
-                        .disabled((assetCount ?? 0) == 0)
+                        .disabled((assetCount ?? 0) + (includeVideos ? (videoCount ?? 0) : 0) == 0)
                     } footer: {
                         Text("Dry run: every decision is stored for review. Nothing is deleted until you press Apply.")
                     }
@@ -114,9 +124,13 @@ struct ScanView: View {
             .task(id: rangeKey) {
                 let (start, end) = range
                 assetCount = nil
-                assetCount = await Task.detached(priority: .userInitiated) {
-                    PhotoLibraryService.assetCount(start: start, end: end)
+                videoCount = nil
+                let counts = await Task.detached(priority: .userInitiated) {
+                    (PhotoLibraryService.assetCount(start: start, end: end, mediaType: .image),
+                     PhotoLibraryService.assetCount(start: start, end: end, mediaType: .video))
                 }.value
+                assetCount = counts.0
+                videoCount = counts.1
             }
         }
     }
@@ -128,6 +142,7 @@ struct ScanView: View {
             end: end,
             includeWhatsApp: includeWhatsApp,
             includeScreenshots: includeScreenshots,
+            includeVideos: includeVideos,
             thresholds: thresholds.thresholds
         ))
     }
@@ -138,9 +153,9 @@ struct ScanView: View {
         Section("Scanning") {
             let p = scan.progress
             VStack(alignment: .leading, spacing: 8) {
-                if scan.stage == .analysing, p.total > 0 {
+                if scan.stage == .analysing || scan.stage == .analysingVideos, p.total > 0 {
                     ProgressView(value: Double(p.done), total: Double(p.total))
-                    Text("Analysing \(p.done.formatted()) / \(p.total.formatted())")
+                    Text("\(scan.stage.label) \(p.done.formatted()) / \(p.total.formatted())")
                 } else {
                     ProgressView()
                     Text(scan.stage.label)
@@ -178,6 +193,13 @@ struct ScanView: View {
             LabeledContent("Received photos", value: s.clutter[.receivedPhoto, default: 0], format: .number)
             LabeledContent("Documents/receipts", value: s.clutter[.utility, default: 0], format: .number)
             LabeledContent("Favorites protected", value: s.favoritesProtected, format: .number)
+            if s.videos > 0 {
+                LabeledContent("Videos scanned", value: s.videos, format: .number)
+                LabeledContent("Video duplicates/takes", value: s.videoGroups, format: .number)
+                LabeledContent("Received videos", value: s.clutter[.receivedVideo, default: 0], format: .number)
+                LabeledContent("Screen recordings", value: s.clutter[.screenRecording, default: 0], format: .number)
+                LabeledContent("Video space to free", value: MediaFormat.bytes(s.bytesToFree))
+            }
             LabeledContent("Delete candidates") {
                 Text(s.deleteCandidates, format: .number).bold()
             }
@@ -188,7 +210,7 @@ struct ScanView: View {
             Text("Last scan")
         } footer: {
             let p = scan.progress
-            Text("\(s.scanned.formatted()) photos in \(Self.elapsed(from: .now.addingTimeInterval(-s.duration), to: .now).replacingOccurrences(of: " elapsed", with: "")) · \(p.fullAnalyses.formatted()) analysed, \(p.printOnly.formatted()) re-fingerprinted, \(p.reusedFromCache.formatted()) reused. Nothing has been deleted.")
+            Text("\(s.scanned.formatted()) photos and \(s.videos.formatted()) videos in \(Self.elapsed(from: .now.addingTimeInterval(-s.duration), to: .now).replacingOccurrences(of: " elapsed", with: "")) · \(p.fullAnalyses.formatted()) analysed, \(p.printOnly.formatted()) re-fingerprinted, \(p.reusedFromCache.formatted()) reused. Nothing has been deleted.")
         }
     }
 }

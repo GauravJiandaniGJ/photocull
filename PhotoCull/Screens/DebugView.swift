@@ -31,7 +31,7 @@ struct DebugView: View {
             }
 
             Section("Timing per request (last scan)") {
-                let stats = scan.extractor.timingStats.sorted { $0.value.totalMs > $1.value.totalMs }
+                let stats = scan.extractor.timingStats.merging(scan.videoExtractor.timingStats, uniquingKeysWith: { a, _ in a }).sorted { $0.value.totalMs > $1.value.totalMs }
                 if stats.isEmpty {
                     Text("No timings yet.").foregroundStyle(.secondary)
                 }
