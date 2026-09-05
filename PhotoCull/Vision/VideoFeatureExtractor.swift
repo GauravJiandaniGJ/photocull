@@ -76,6 +76,10 @@ final class VideoFeatureExtractor: @unchecked Sendable {
 
     // MARK: Helpers
 
+    private struct AssetBox: @unchecked Sendable {
+        let asset: AVAsset?
+    }
+
     private struct ContainerFacts: Sendable {
         var fileSize: Int64 = 0
         var hasCameraMetadata: Bool? = nil
@@ -92,24 +96,20 @@ final class VideoFeatureExtractor: @unchecked Sendable {
         options.deliveryMode = .highQualityFormat
         options.version = .current
         let once = Locked(false)
-        let avAsset: AVAsset? = await withCheckedContinuation { (continuation: CheckedContinuation<AVAsset?, Never>) in
+        // AVAsset is not Sendable; PhotoKit hands it over once, and only this function touches it.
+        let box: AssetBox = await withCheckedContinuation { (continuation: CheckedContinuation<AssetBox, Never>) in
             PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, _ in
                 if once.with({ done -> Bool in defer { done = true }; return !done }) {
-                    continuation.resume(returning: avAsset)
+                    continuation.resume(returning: AssetBox(asset: avAsset))
                 }
             }
         }
-        guard let avAsset else { return facts }
+        guard let avAsset = box.asset else { return facts }
 
         if let url = (avAsset as? AVURLAsset)?.url,
            let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
             facts.fileSize = Int64(size)
         }
-        if let items = try? await avAsset.load(.metadata) {
-            let names = items.compactMap { $0.commonKey?.rawValue.lowercased() } + items.compactMap { $0.identifier?.rawValue.lowercased() }
-            facts.hasCameraMetadata = names.contains { $0.hasSuffix("make") || $0.hasSuffix("model") || $0.contains("quicktime.make") || $0.contains("quicktime.model") }
-        }
-
         let generator = AVAssetImageGenerator(asset: avAsset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 512, height: 512)
@@ -123,6 +123,13 @@ final class VideoFeatureExtractor: @unchecked Sendable {
             if let print = try? await handler.perform(GenerateImageFeaturePrintRequest()) {
                 facts.prints.append(print)
             }
+        }
+
+        // Last use of the asset: an async call on a non-Sendable object "sends" it, so nothing
+        // may touch it afterwards.
+        if let items = try? await avAsset.load(.metadata) {
+            let names = items.compactMap { $0.commonKey?.rawValue.lowercased() } + items.compactMap { $0.identifier?.rawValue.lowercased() }
+            facts.hasCameraMetadata = names.contains { $0.hasSuffix("make") || $0.hasSuffix("model") || $0.contains("quicktime.make") || $0.contains("quicktime.model") }
         }
         return facts
     }
