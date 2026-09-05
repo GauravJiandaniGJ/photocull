@@ -10,14 +10,15 @@ Personal iOS photo-culling app for two phones (iPhone 17 Pro Max primary, iPhone
 
 ## Current state
 
-Milestones 1–4 (§11) are built and installed on the 17 Pro Max; milestones 5 (Claude tie-breaker) and 6 (second phone, 6-month scans) are still to do.
+Milestones 1–5 (§11) are built and installed on the 17 Pro Max; milestone 6 (second phone, 6-month scans) is still to do.
 
 - `Packages/PhotoCullCore` is complete against §5: Thresholds, AssetMetrics, Classifier, Grouper, Scorer, Planner, TieBreakVerdict, with 55 passing tests covering §10.
 - Milestone 1 in the app target: `VisionFeatureExtractor` (feature print, aesthetics, face capture quality, CIDetector eyes/smile, EXIF probe, gated OCR), `ScanController` (fetch → cache lookup → 3-wide TaskGroup → Planner → SwiftData session), scan progress and summary on the Scan tab, Debug → raw metrics table, Calibrate histogram with threshold slider and group preview, CSV export, per-request timings.
 - Milestones 2–3: `GroupsView` (filters, strips, keeper/delete badges) → `GroupDetailView` (pager, score breakdown, Make keeper, toggle, Keep all, Delete all but keeper); `ClutterView` sectioned grid with Select/Deselect all and a detail sheet. All overrides go through `Review` (Services/Review.swift) and are marked `source = user`; `PersistenceActor.saveSession` carries user decisions and user-chosen keepers into the next scan.
 - Milestone 4: `ApplyController.apply` is the single `deleteAssets` call site; it re-fetches candidates, skips missing/changed/favorited assets, writes an `AuditEntry`, marks the session `applied`. `AuditDetailView` + `AuditExport` produce the JSON/CSV log (from Apply and from Settings → scan history). Apply is gated on `ScanController.reviewOpened`.
 - Also in place: Photos permission gate, five-tab shell, SwiftData models (§7), Settings (thresholds, Keychain-backed Claude key, cache clear, scan history).
-- Not built yet: `ClaudeTieBreaker` HTTP client (5); second-phone install and 6-month performance pass (6).
+- Milestone 5: the tie-breaker is a post-scan, user-confirmed action, not part of the scan. `ClaudeSettings` (toggle, model, key presence) → `TieBreakButton` (renders only when `isAvailable`, shows a confirmation with photo count and estimated cost) → `TieBreakRunner.run` → `ClaudeTieBreaker.resolve` (the only `URLSession` use in the app). Candidates = `Scorer.tieCandidates` minus favorites, capped by `claudeMaxImagesPerGroup`; a verdict can only move the keeper within the tie; errors land on `PhotoGroup.claudeError`. Settings has "Test connection" (GET /v1/models/{id}, no tokens). Model ids: `claude-sonnet-5`, `claude-haiku-4-5`.
+- Not built yet: second-phone install and 6-month performance pass (6).
 
 ## Commands
 
@@ -80,4 +81,4 @@ Things that are easy to get wrong across files:
 - Only assets with a delete `Decision` in the current session are deleted; re-fetch by `localIdentifier` right before deletion and skip anything missing or modified since analysis.
 - Groups never have size 1 and never have zero keepers (`ProposedGroup` preconditions this).
 - Decisions with `source == user` are never re-scored on a later scan.
-- The Claude client makes zero network calls unless the toggle is on and a key exists in Keychain; a failed or low-confidence call never flips a decision to delete.
+- The Claude client makes zero network calls unless the toggle is on, a key exists in Keychain, and the user confirmed the specific batch in the dialog; a failed or low-confidence call never flips a decision to delete. `grep -rn URLSession PhotoCull` must only hit `ClaudeTieBreaker.swift`.

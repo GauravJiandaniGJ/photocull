@@ -181,6 +181,18 @@ public struct Scorer: Sendable {
 
     // MARK: Reasons
 
+    /// Reasons for every member relative to `keeperID`, from stored scores. Used by the app
+    /// when an external tie-breaker (Claude) picks a keeper on an already-persisted group.
+    public func reasons(for scores: [MemberScore], keeperID: String) -> [String: String] {
+        reasons(scores: scores, keeperID: keeperID, localTieBreak: nil)
+    }
+
+    /// Members within `tieBreakMargin` of the top score, best first. Empty when `scores` is empty.
+    public func tieCandidates(in scores: [MemberScore]) -> [MemberScore] {
+        guard let top = scores.map(\.score).max() else { return [] }
+        return Self.tieSet(scores: scores, top: top, margin: thresholds.tieBreakMargin).sorted { $0.score > $1.score }
+    }
+
     private enum Term: String { case faceQuality, aesthetics, eyesOpen, smile, resolution }
 
     private func weightedTerms(_ s: MemberScore) -> [Term: Float] {

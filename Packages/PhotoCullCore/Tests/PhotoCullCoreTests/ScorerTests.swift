@@ -112,4 +112,17 @@ final class ScorerTests: XCTestCase {
         XCTAssertNil(overridden.localTieBreak)
         XCTAssertEqual(overridden.scores, g.scores)
     }
+
+    func testPublicReasonsAndTieCandidatesFromStoredScores() {
+        let a = asset("a", faces: [face(quality: 0.9)])
+        let b = asset("b", at: 1, faces: [face(quality: 0.3)])
+        let c = asset("c", at: 2, faces: [face(quality: 0.9)])
+        let g = scored([a, b, c])
+        let reasons = scorer.reasons(for: g.scores, keeperID: "c")
+        XCTAssertEqual(reasons.count, 3)
+        XCTAssertFalse(reasons["a"]!.isEmpty)
+        let ties = scorer.tieCandidates(in: g.scores).map(\.assetID)
+        XCTAssertEqual(Set(ties), ["a", "c"])
+        XCTAssertTrue(scorer.tieCandidates(in: []).isEmpty)
+    }
 }

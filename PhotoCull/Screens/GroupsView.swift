@@ -53,6 +53,9 @@ struct GroupsView: View {
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                         }
+                        if let session {
+                            Section { TieBreakButton(session: session) }
+                        }
                         Section {
                             ForEach(groups, id: \.id) { group in
                                 NavigationLink(value: group.id) {

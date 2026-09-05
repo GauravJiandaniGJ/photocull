@@ -5,6 +5,8 @@ import SwiftUI
 struct RootView: View {
     @State private var library = PhotoLibraryService()
     @State private var thresholds = ThresholdsStore()
+    @State private var claude = ClaudeSettings()
+    @State private var tieBreaker = TieBreakRunner()
     @Environment(\.scenePhase) private var scenePhase
 
     /// DEBUG-only: `-skipPhotosGate` as a launch argument shows the tab shell without Photos
@@ -27,6 +29,8 @@ struct RootView: View {
         }
         .environment(library)
         .environment(thresholds)
+        .environment(claude)
+        .environment(tieBreaker)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { library.refreshAccess() }
         }

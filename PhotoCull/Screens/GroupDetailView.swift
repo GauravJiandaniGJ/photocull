@@ -62,7 +62,9 @@ struct GroupDetailView: View {
                         Spacer()
                     }
                     if let claudeReason = group.claudeReason {
-                        Label(claudeReason, systemImage: "sparkles").font(.footnote)
+                        Label("Claude: \(claudeReason)", systemImage: "sparkles").font(.footnote)
+                    } else if let claudeError = group.claudeError {
+                        Label("Claude could not decide: \(claudeError)", systemImage: "sparkles.slash").font(.footnote).foregroundStyle(.secondary)
                     }
                     if let score {
                         scoreBreakdown(score)

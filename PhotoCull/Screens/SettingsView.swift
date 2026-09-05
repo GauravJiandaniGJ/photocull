@@ -2,23 +2,16 @@ import PhotoCullCore
 import SwiftData
 import SwiftUI
 
-enum ClaudeModel: String, CaseIterable, Identifiable {
-    case sonnet = "claude-sonnet-5"
-    case haiku = "claude-haiku-4-5-20251001"
-
-    var id: String { rawValue }
-    var label: String { self == .sonnet ? "Sonnet 5 (default)" : "Haiku 4.5 (cheaper)" }
-}
-
 struct SettingsView: View {
     @Environment(ThresholdsStore.self) private var store
     @Environment(\.modelContext) private var context
     @Query private var cached: [AssetRecord]
     @Query(sort: \ScanSession.createdAt, order: .reverse) private var sessions: [ScanSession]
-    @AppStorage("claude.enabled") private var claudeEnabled = false
-    @AppStorage("claude.model") private var claudeModel = ClaudeModel.sonnet.rawValue
+    @Environment(ClaudeSettings.self) private var claude
     @State private var apiKeyDraft = ""
-    @State private var hasStoredKey = KeychainStore.read(KeychainStore.claudeAPIKey) != nil
+    @State private var keyError: String?
+    @State private var connectionResult: String?
+    @State private var testing = false
     @State private var confirmClearCache = false
     @State private var showDebug = false
 
@@ -47,22 +40,46 @@ struct SettingsView: View {
                     Text("The album WhatsApp creates with “Save to Camera Roll”. Check the exact title in Photos on this phone.")
                 }
 
-                Section("Claude tie-breaker") {
-                    Toggle("Use Claude for ties", isOn: $claudeEnabled)
-                    Picker("Model", selection: $claudeModel) {
-                        ForEach(ClaudeModel.allCases) { Text($0.label).tag($0.rawValue) }
-                    }
-                    SecureField(hasStoredKey ? "Key stored — enter a new one to replace" : "API key", text: $apiKeyDraft)
+                Section {
+                    @Bindable var claude = claude
+                    SecureField(claude.hasKey ? "Key stored — enter a new one to replace" : "API key (sk-ant-…)", text: $apiKeyDraft)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     HStack {
                         Button("Save key") { saveKey() }
                             .disabled(apiKeyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
                         Spacer()
-                        if hasStoredKey {
+                        if claude.hasKey {
                             Button("Remove key", role: .destructive) { removeKey() }
                         }
                     }
+                    if claude.hasKey {
+                        Toggle("Offer Claude for ties", isOn: $claude.isEnabled)
+                        Picker("Model", selection: $claude.model) {
+                            ForEach(ClaudeModel.allCases) { Text($0.label).tag($0) }
+                        }
+                        Button {
+                            testConnection()
+                        } label: {
+                            HStack {
+                                Text("Test connection")
+                                if testing { Spacer(); ProgressView() }
+                            }
+                        }
+                        .disabled(testing)
+                        if let connectionResult {
+                            Text(connectionResult).font(.footnote)
+                        }
+                    }
+                    if let keyError {
+                        Text(keyError).font(.footnote).foregroundStyle(.red)
+                    }
+                } header: {
+                    Text("Claude tie-breaker")
+                } footer: {
+                    Text(claude.hasKey
+                         ? "Only tied groups are sent, only after you confirm, with downscaled copies and no metadata. Never favorites."
+                         : "Optional. Without a key the tie-breaker is not offered anywhere in the app.")
                 }
 
                 Section("Analysis cache") {
@@ -116,17 +133,33 @@ struct SettingsView: View {
 
     private func saveKey() {
         do {
-            try KeychainStore.write(apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines), account: KeychainStore.claudeAPIKey)
+            try claude.saveKey(apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines))
             apiKeyDraft = ""
-            hasStoredKey = true
+            keyError = nil
+            connectionResult = nil
         } catch {
-            // Surfaced in milestone 5 with the rest of the Claude UI.
+            keyError = "Could not store the key: \(error.localizedDescription)"
         }
     }
 
     private func removeKey() {
-        KeychainStore.delete(KeychainStore.claudeAPIKey)
-        hasStoredKey = false
+        claude.removeKey()
+        connectionResult = nil
+    }
+
+    private func testConnection() {
+        guard let key = claude.apiKey() else { return }
+        testing = true
+        connectionResult = nil
+        let model = claude.model.rawValue
+        Task {
+            let result = await ClaudeTieBreaker.checkModel(model, apiKey: key)
+            switch result {
+            case .success(let name): connectionResult = "OK: key accepted, model \(name) available."
+            case .failure(let error): connectionResult = "Failed: \(error.localizedDescription)"
+            }
+            testing = false
+        }
     }
 
     private func clearCache() {

@@ -1,4 +1,5 @@
 import PhotoCullCore
+import SwiftData
 import SwiftUI
 
 enum RangePreset: String, CaseIterable, Identifiable {
@@ -12,10 +13,11 @@ enum RangePreset: String, CaseIterable, Identifiable {
 struct ScanView: View {
     @Environment(ScanController.self) private var scan
     @Environment(ThresholdsStore.self) private var thresholds
+    @Environment(ClaudeSettings.self) private var claude
+    @Query(sort: \ScanSession.createdAt, order: .reverse) private var sessions: [ScanSession]
     @AppStorage("scan.preset") private var presetRaw = RangePreset.threeMonths.rawValue
     @AppStorage("scan.includeWhatsApp") private var includeWhatsApp = true
     @AppStorage("scan.includeScreenshots") private var includeScreenshots = true
-    @AppStorage("claude.enabled") private var claudeEnabled = false
     @State private var customStart = Calendar.current.date(byAdding: .month, value: -3, to: .now) ?? .now
     @State private var customEnd = Date.now
     @State private var assetCount: Int?
@@ -63,10 +65,21 @@ struct ScanView: View {
                 }
                 .disabled(scan.isRunning)
 
-                Section("Include") {
+                Section {
                     Toggle("WhatsApp album", isOn: $includeWhatsApp)
                     Toggle("Screenshots", isOn: $includeScreenshots)
-                    Toggle("Claude tie-breaker", isOn: $claudeEnabled)
+                    if claude.hasKey {
+                        @Bindable var claude = claude
+                        Toggle("Claude tie-breaker", isOn: $claude.isEnabled)
+                    }
+                } header: {
+                    Text("Include")
+                } footer: {
+                    if !claude.hasKey {
+                        Text("To offer the Claude tie-breaker after a scan, add an API key in Settings.")
+                    } else if claude.isEnabled {
+                        Text("Claude is only asked after the scan, and only after you confirm which tied groups to send.")
+                    }
                 }
                 .disabled(scan.isRunning)
 
@@ -164,6 +177,9 @@ struct ScanView: View {
             LabeledContent("Favorites protected", value: s.favoritesProtected, format: .number)
             LabeledContent("Delete candidates") {
                 Text(s.deleteCandidates, format: .number).bold()
+            }
+            if let session = sessions.first, session.id == s.sessionID {
+                TieBreakButton(session: session)
             }
         } header: {
             Text("Last scan")
