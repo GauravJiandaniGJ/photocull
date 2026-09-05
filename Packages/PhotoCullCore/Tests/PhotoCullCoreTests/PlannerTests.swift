@@ -18,7 +18,7 @@ final class PlannerTests: XCTestCase {
         ]
     }
 
-    private let table = distances([("sim1", "sim2", 0.2)])
+    private let table = distances([("sim1", "sim2", 0.02)])
 
     func testSameMetricsInSameDecisionsOut() {
         let a = planner.plan(metrics: library, distance: table)

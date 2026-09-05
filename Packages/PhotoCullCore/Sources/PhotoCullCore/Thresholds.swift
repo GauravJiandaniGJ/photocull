@@ -6,7 +6,8 @@ public struct Thresholds: Codable, Equatable, Sendable {
     /// New time bucket when the gap to the previous photo exceeds this.
     public var groupTimeGapSeconds: TimeInterval
     /// Feature-print distance at or below which two photos are "the same shot".
-    /// 0.6 is a placeholder until calibrated on a real library (Debug → Calibrate).
+    /// The spec's 0.6 over-groups badly on iOS 26 Vision; 0.05 was calibrated on a real
+    /// library with Debug → Calibrate and keeps only near-identical frames.
     public var similarityDistanceMax: Float
     /// Top-two score gap below which the group is a tie.
     public var tieBreakMargin: Float
@@ -25,7 +26,7 @@ public struct Thresholds: Codable, Equatable, Sendable {
 
     public init(
         groupTimeGapSeconds: TimeInterval = 120,
-        similarityDistanceMax: Float = 0.6,
+        similarityDistanceMax: Float = 0.05,
         tieBreakMargin: Float = 0.05,
         minFaceAreaRatio: Float = 0.01,
         textHeavyCharCount: Int = 80,

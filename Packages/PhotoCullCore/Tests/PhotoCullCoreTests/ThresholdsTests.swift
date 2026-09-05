@@ -5,6 +5,7 @@ final class ThresholdsTests: XCTestCase {
     func testRoundTrip() throws {
         var t = Thresholds()
         t.similarityDistanceMax = 0.42
+        XCTAssertEqual(Thresholds.default.similarityDistanceMax, 0.05)
         let data = try JSONEncoder().encode(t)
         XCTAssertEqual(try JSONDecoder().decode(Thresholds.self, from: data), t)
     }

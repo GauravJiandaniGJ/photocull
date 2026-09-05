@@ -26,20 +26,27 @@ final class GrouperTests: XCTestCase {
     }
 
     func testUnionFindIsTransitive() {
-        let d = distances([("a", "b", 0.3), ("b", "c", 0.3), ("a", "c", 0.9)])
+        let d = distances([("a", "b", 0.03), ("b", "c", 0.03), ("a", "c", 0.09)])
         let g = grouper.groups(for: candidates([asset("a"), asset("b", at: 1), asset("c", at: 2)]), distance: d)
         XCTAssertEqual(g.count, 1)
         XCTAssertEqual(g[0].memberIDs, ["a", "b", "c"])
     }
 
     func testDistanceAboveThresholdDoesNotJoin() {
-        let g = grouper.groups(for: candidates([asset("a"), asset("b", at: 1)]), distance: allPairs(0.61))
+        let g = grouper.groups(for: candidates([asset("a"), asset("b", at: 1)]), distance: allPairs(0.051))
         XCTAssertTrue(g.isEmpty)
     }
 
     func testDistanceAtThresholdJoins() {
-        let g = grouper.groups(for: candidates([asset("a"), asset("b", at: 1)]), distance: allPairs(0.6))
+        let g = grouper.groups(for: candidates([asset("a"), asset("b", at: 1)]), distance: allPairs(0.05))
         XCTAssertEqual(g.count, 1)
+    }
+
+    func testCustomThresholdIsHonoured() {
+        let loose = Grouper(thresholds: Thresholds(similarityDistanceMax: 0.6))
+        let g = loose.groups(for: candidates([asset("a"), asset("b", at: 1)]), distance: allPairs(0.6))
+        XCTAssertEqual(g.count, 1)
+        XCTAssertTrue(grouper.groups(for: candidates([asset("a"), asset("b", at: 1)]), distance: allPairs(0.6)).isEmpty)
     }
 
     func testMissingFeaturePrintNeverJoins() {
@@ -80,14 +87,14 @@ final class GrouperTests: XCTestCase {
     func testSingletonsAreNeverGroups() {
         let g = grouper.groups(for: candidates([asset("a")]), distance: allPairs(0))
         XCTAssertTrue(g.isEmpty)
-        for group in grouper.groups(for: candidates([asset("a"), asset("b", at: 1), asset("c", at: 2)]), distance: distances([("a", "b", 0.1)])) {
+        for group in grouper.groups(for: candidates([asset("a"), asset("b", at: 1), asset("c", at: 2)]), distance: distances([("a", "b", 0.01)])) {
             XCTAssertGreaterThanOrEqual(group.memberIDs.count, 2)
         }
     }
 
     func testOutputIsIndependentOfInputOrder() {
         let m = [asset("a"), asset("b", at: 5), asset("c", at: 10), asset("d", at: 500), asset("e", at: 505)]
-        let d = distances([("a", "b", 0.1), ("b", "c", 0.1), ("d", "e", 0.2)])
+        let d = distances([("a", "b", 0.01), ("b", "c", 0.01), ("d", "e", 0.02)])
         let forward = grouper.groups(for: candidates(m), distance: d)
         let backward = grouper.groups(for: candidates(m.reversed()), distance: d)
         XCTAssertEqual(forward, backward)
