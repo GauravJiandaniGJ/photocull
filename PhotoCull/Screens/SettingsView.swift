@@ -142,17 +142,23 @@ private struct ThresholdRow<V: Equatable & LosslessStringConvertible>: View {
         self.defaultValue = defaultValue
     }
 
+    /// "120" rather than "120.0" for whole-number doubles; everything else as-is.
+    private static func display(_ v: V) -> String {
+        let text = String(v)
+        return text.hasSuffix(".0") ? String(text.dropLast(2)) : text
+    }
+
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
                 Text(title)
-                Text("Default \(String(defaultValue))")
+                Text("Default \(Self.display(defaultValue))")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             TextField(title, text: Binding(
-                get: { String(value) },
+                get: { Self.display(value) },
                 set: { if let v = V($0) { value = v } }
             ))
             .keyboardType(.decimalPad)

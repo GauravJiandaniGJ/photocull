@@ -14,6 +14,7 @@ struct CalibrateView: View {
     private struct Bin: Identifiable {
         let id: Int
         let lower: Float
+        let upper: Float
         let count: Int
     }
 
@@ -40,13 +41,14 @@ struct CalibrateView: View {
         return List {
             Section {
                 Chart {
+                    // Interval bars: on a numeric x axis a plain BarMark has no band width and draws nothing.
                     ForEach(bins) { bin in
                         BarMark(
-                            x: .value("Distance", bin.lower),
-                            y: .value("Pairs", bin.count),
-                            width: .ratio(1)
+                            xStart: .value("Distance", bin.lower),
+                            xEnd: .value("Distance", bin.upper),
+                            y: .value("Pairs", bin.count)
                         )
-                        .foregroundStyle(bin.lower < threshold ? Color.accentColor : Color.secondary.opacity(0.4))
+                        .foregroundStyle(bin.upper <= threshold ? Color.accentColor : Color.secondary.opacity(0.4))
                     }
                     RuleMark(x: .value("Threshold", threshold))
                         .foregroundStyle(.red)
@@ -69,6 +71,10 @@ struct CalibrateView: View {
                     Text(threshold, format: .number.precision(.fractionLength(2)))
                         .monospacedDigit()
                         .frame(width: 48, alignment: .trailing)
+                }
+                LabeledContent("Pairs below threshold") {
+                    let below = distances.filter { $0 <= threshold }.count
+                    Text("\(below.formatted()) of \(distances.count.formatted())")
                 }
                 LabeledContent("Groups at this threshold", value: preview.count, format: .number)
                 LabeledContent("Photos in groups", value: preview.reduce(0) { $0 + $1.memberIDs.count }, format: .number)
@@ -120,6 +126,8 @@ struct CalibrateView: View {
             let index = min(binCount - 1, max(0, Int(v / width)))
             counts[index] += 1
         }
-        return counts.enumerated().map { Bin(id: $0.offset, lower: Float($0.offset) * width, count: $0.element) }
+        return counts.enumerated().map {
+            Bin(id: $0.offset, lower: Float($0.offset) * width, upper: Float($0.offset + 1) * width, count: $0.element)
+        }
     }
 }
