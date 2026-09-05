@@ -1,20 +1,44 @@
 import Foundation
 import PhotoCullCore
-import Photos
 
-/// Turns one PHAsset into `AssetMetrics` (spec §4) and keeps its feature print in memory so
-/// the grouper can ask for distances. Implemented in milestone 1 with Vision + Core Image;
-/// only this file and its implementation may import Vision — PhotoCullCore never does.
-///
-/// Contract for the implementation:
-/// - One 1024px `CGImage` per asset, all requests run on it, released in an `autoreleasepool`.
-/// - Feature prints are never persisted; they die with the scan.
-/// - EXIF is probed only for JPEG/PNG; HEIC leaves `hasCameraExif == nil`.
-/// - OCR runs only when `isUtility == true`, there are no faces, or the asset is received/PNG.
-/// - If an iOS 18 Swift Vision request name does not compile, use the `VN`-prefixed legacy request.
-protocol FeatureExtracting: AnyObject {
-    func extract(_ asset: PHAsset, inWhatsAppAlbum: Bool, thresholds: Thresholds) async throws -> AssetMetrics
+enum ExtractionMode: Sendable {
+    /// Every signal in spec §4; the result goes to the cache.
+    case full
+    /// Only the feature print, for assets whose scalar metrics are already cached. Prints are
+    /// never persisted, so grouping a re-scan still needs them in memory.
+    case featurePrintOnly
+}
+
+struct TimingStat: Sendable, Equatable {
+    var count = 0
+    var totalMs = 0.0
+    var averageMs: Double { count == 0 ? 0 : totalMs / Double(count) }
+}
+
+enum ExtractionError: Error, LocalizedError {
+    case assetMissing
+    case imageUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .assetMissing: return "Asset no longer exists"
+        case .imageUnavailable: return "Image could not be loaded"
+        }
+    }
+}
+
+/// Turns one asset into `AssetMetrics` (spec §4) and keeps its feature print in memory so
+/// the grouper can ask for distances. Only the implementation may import Vision;
+/// PhotoCullCore never does.
+protocol FeatureExtracting: AnyObject, Sendable {
+    /// Returns nil for `.featurePrintOnly` (the caller already has cached metrics).
+    func extract(_ asset: AssetInfo, mode: ExtractionMode, inWhatsAppAlbum: Bool, thresholds: Thresholds) async throws -> AssetMetrics?
 
     /// Feature-print distance between two analysed assets in this scan; nil when either has no print.
     func distance(_ a: String, _ b: String) -> Float?
+
+    /// Drop all feature prints (start of a scan).
+    func resetPrints()
+
+    var timingStats: [String: TimingStat] { get }
 }

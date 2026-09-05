@@ -10,11 +10,12 @@ Personal iOS photo-culling app for two phones (iPhone 17 Pro Max primary, iPhone
 
 ## Current state
 
-Scaffolded and compiling; milestones 1–6 (§11) are still to do.
+Milestone 1 (§11) is built and installed on the 17 Pro Max; milestones 2–6 are still to do.
 
-- `Packages/PhotoCullCore` is complete against §5: Thresholds, AssetMetrics, Classifier, Grouper, Scorer, Planner, TieBreakVerdict, with 53 passing tests covering §10.
-- The app target is a skeleton: Photos permission gate, five-tab shell, SwiftData models (§7), PhotoKit fetch + WhatsApp album lookup, Settings (thresholds, Keychain-backed Claude key, cache clear, scan history), hidden Debug screen. Scan and Apply buttons are disabled until milestones 1 and 4.
-- Not built yet: `FeatureExtractor` (protocol only), `AnalysisService`, the Calibrate view, Groups/Clutter review UI, Apply/delete path, `ClaudeTieBreaker` HTTP client.
+- `Packages/PhotoCullCore` is complete against §5: Thresholds, AssetMetrics, Classifier, Grouper, Scorer, Planner, TieBreakVerdict, with 55 passing tests covering §10.
+- Milestone 1 in the app target: `VisionFeatureExtractor` (feature print, aesthetics, face capture quality, CIDetector eyes/smile, EXIF probe, gated OCR), `ScanController` (fetch → cache lookup → 3-wide TaskGroup → Planner → SwiftData session), scan progress and summary on the Scan tab, Debug → raw metrics table, Calibrate histogram with threshold slider and group preview, CSV export, per-request timings.
+- Also in place: Photos permission gate, five-tab shell, SwiftData models (§7), Settings (thresholds, Keychain-backed Claude key, cache clear, scan history).
+- Not built yet: Groups/Clutter review UI (milestones 2–3), Apply/delete path and audit export (4), `ClaudeTieBreaker` HTTP client (5). The Apply button stays disabled until milestone 4. Carrying user overrides across re-scans is a milestone 2 concern.
 
 ## Commands
 
@@ -54,7 +55,9 @@ Names: Core uses `AssetCategory` and `CullAction` (not `Category`/`Action`, whic
 
 Things that are easy to get wrong across files:
 
-- Feature prints live in memory for one scan only. Everything scalar is cached in `AssetRecord.metricsJSON` keyed by `localIdentifier` and invalidated by `modificationDate`.
+- Feature prints live in memory for one scan only (`VisionFeatureExtractor`). Everything scalar is cached in `AssetRecord.metricsJSON` keyed by `localIdentifier` and invalidated by `modificationDate`. A cached groupable asset still gets a `featurePrintOnly` pass on re-scan so it can be grouped; clutter is reused without touching the image.
+- `ScanController.Calibration` (candidates, every compared pair's distance, metrics) is what the Calibrate view reads; it exists only after a scan in the current app session.
+- Vision coordinates: the extractor redraws the image upright once, so Vision `NormalizedRect.cgRect` and CIDetector bounds (normalised by image size) share a bottom-left origin and can be matched by IoU.
 - `similarityDistanceMax` (0.6) is a placeholder until calibrated with the Debug → Calibrate histogram on a real library (§5.3). Do not tune it blind.
 - `Thresholds` is one Codable struct; `ThresholdsStore` persists it, and each scan snapshots it onto `ScanSession.thresholdsJSON`. Decoding tolerates missing keys, so adding a threshold never breaks stored sessions.
 - Tie detection is strict: a top-two gap exactly equal to `tieBreakMargin` is not a tie. Local tie-break order is higher aesthetics, then earlier creation date.

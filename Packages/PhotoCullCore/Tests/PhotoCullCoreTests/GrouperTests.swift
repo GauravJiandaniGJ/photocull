@@ -93,4 +93,22 @@ final class GrouperTests: XCTestCase {
         XCTAssertEqual(forward, backward)
         XCTAssertEqual(forward.map(\.memberIDs), [["a", "b", "c"], ["d", "e"]])
     }
+
+    func testComparedPairsMatchBucketsAndCap() {
+        // One bucket of 3 → 3 pairs; a far bucket of 2 → 1 pair; nothing across buckets.
+        let m = [asset("a"), asset("b", at: 1), asset("c", at: 2), asset("d", at: 500), asset("e", at: 501)]
+        let pairs = grouper.comparedPairs(for: candidates(m))
+        XCTAssertEqual(pairs.count, 4)
+        XCTAssertTrue(pairs.contains(ComparedPair(a: "a", b: "c")))
+        XCTAssertFalse(pairs.contains(where: { ($0.a == "c" && $0.b == "d") }))
+
+        let big = (0..<61).map { asset(String(format: "%03d", $0), at: TimeInterval($0)) }
+        XCTAssertEqual(grouper.comparedPairs(for: candidates(big)).count, 60 * 59 / 2, "61 assets → one 60-chunk and a singleton")
+    }
+
+    func testComparedPairsExcludeBurstMembers() {
+        let m = [asset("a", burst: "B"), asset("b", at: 1, burst: "B"), asset("c", at: 2), asset("d", at: 3)]
+        let pairs = grouper.comparedPairs(for: candidates(m))
+        XCTAssertEqual(pairs, [ComparedPair(a: "c", b: "d")])
+    }
 }

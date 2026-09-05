@@ -70,6 +70,19 @@ final class PhotoLibraryService {
         fetchAssets(start: start, end: end).count
     }
 
+    /// Sendable snapshots of every asset in the range, in creation-date order.
+    nonisolated static func assetInfos(start: Date, end: Date) -> [AssetInfo] {
+        let result = fetchAssets(start: start, end: end)
+        var infos: [AssetInfo] = []
+        infos.reserveCapacity(result.count)
+        result.enumerateObjects { asset, _, _ in infos.append(AssetInfo(asset)) }
+        return infos
+    }
+
+    nonisolated static func asset(withID id: String) -> PHAsset? {
+        PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject
+    }
+
     /// localIdentifiers of every asset in the user album with this title (WhatsApp's
     /// "Save to Camera Roll" album). Empty when no such album exists; the EXIF rule still
     /// catches received JPEGs, so a missing album is fine.
