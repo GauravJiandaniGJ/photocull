@@ -61,9 +61,11 @@ final class ApplyController {
             eligible.append(id)
         }
 
+        AppLog.info(.apply, "Apply: \(candidateIDs.count) candidates, \(eligible.count) eligible, skipped \(partial.skippedMissing) missing / \(partial.skippedModified) changed / \(partial.skippedFavorite) favorited")
         guard !eligible.isEmpty else {
             result = partial
             state = .failed("Nothing left to delete: every candidate is missing, changed, or now a favorite.")
+            AppLog.warning(.apply, "Apply aborted: nothing eligible")
             return
         }
 
@@ -76,9 +78,11 @@ final class ApplyController {
             }
         } catch let error as PHPhotosError where error.code == .userCancelled {
             state = .cancelled
+            AppLog.warning(.apply, "Apply cancelled in the system dialog; nothing deleted")
             return
         } catch {
             state = .failed(error.localizedDescription)
+            AppLog.error(.apply, "Apply failed: \(error.localizedDescription)")
             return
         }
 
@@ -107,6 +111,7 @@ final class ApplyController {
         partial.auditID = audit.id
         result = partial
         state = .done
+        AppLog.info(.apply, "Moved \(eligible.count) photos to Recently Deleted; audit \(audit.id.uuidString.prefix(8))")
     }
 }
 

@@ -6,7 +6,6 @@ import SwiftUI
 struct ApplyView: View {
     @Query(sort: \ScanSession.createdAt, order: .reverse) private var sessions: [ScanSession]
     @Environment(\.modelContext) private var context
-    @Environment(ScanController.self) private var scan
     @State private var apply = ApplyController()
     @State private var confirming = false
 
@@ -90,10 +89,15 @@ struct ApplyView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
-            .disabled(!scan.reviewOpened || toDelete.isEmpty || apply.isBusy)
+            .disabled(!Journey(session: session).canApply || toDelete.isEmpty || apply.isBusy)
         } footer: {
-            if !scan.reviewOpened {
+            let journey = Journey(session: session)
+            if !journey.canApply {
                 Text("Open Groups or Clutter first to review the decisions.")
+            } else if session.groupsVisitedAt == nil {
+                Text("You have not opened Groups for this scan. Group losers are included in the count above.")
+            } else if session.clutterVisitedAt == nil {
+                Text("You have not opened Clutter for this scan. Screenshots and received documents are ticked by default.")
             } else if toDelete.isEmpty {
                 Text("No delete candidates in this session.")
             } else {

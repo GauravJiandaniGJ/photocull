@@ -75,8 +75,6 @@ final class ScanController {
     private(set) var summary: Summary?
     private(set) var calibration: Calibration?
     private(set) var errorMessage: String?
-    /// Apply stays disabled until Groups or Clutter has been opened for the current scan (spec §6).
-    var reviewOpened = false
 
     let extractor = VisionFeatureExtractor()
     private let container: ModelContainer
@@ -104,8 +102,8 @@ final class ScanController {
         errorMessage = nil
         startedAt = .now
         finishedAt = nil
-        reviewOpened = false
         UIApplication.shared.isIdleTimerDisabled = true
+        AppLog.info(.scan, "Scan started: \(options.start.formatted(date: .abbreviated, time: .omitted)) – \(options.end.formatted(date: .abbreviated, time: .omitted)), WhatsApp \(options.includeWhatsApp ? "on" : "off"), screenshots \(options.includeScreenshots ? "on" : "off"), similarity ≤ \(options.thresholds.similarityDistanceMax)")
         task = Task { [weak self] in
             await self?.run(options)
         }
@@ -166,6 +164,7 @@ final class ScanController {
             let thresholds = options.thresholds
             let whatsApp = fetched.whatsApp
             var pending: [AnalysisEntry] = []
+            var failures: [String] = []
             try await withThrowingTaskGroup(of: ExtractionResult.self) { group in
                 var iterator = work.makeIterator()
                 func addNext() {
@@ -186,7 +185,7 @@ final class ScanController {
                     progress.done += 1
                     if let error = result.error {
                         progress.failed += 1
-                        _ = error
+                        if failures.count < 5 { failures.append("\(result.info.id.prefix(8))…: \(error)") }
                     } else if let metrics = result.metrics {
                         progress.fullAnalyses += 1
                         metricsByID[metrics.id] = metrics
@@ -203,6 +202,9 @@ final class ScanController {
             }
             try await persistence.upsert(pending)
             pending.removeAll()
+            if progress.failed > 0 {
+                AppLog.warning(.scan, "\(progress.failed) photos failed analysis, e.g. \(failures.joined(separator: "; "))")
+            }
             try Task.checkCancellation()
 
             // 4. Classify → group → score → decide, in Core, off the main actor.
@@ -231,11 +233,16 @@ final class ScanController {
             )
             summary = Self.summarize(plan, sessionID: sessionID, scanned: infos.count, since: startedAt)
             stage = .completed
+            if let s = summary {
+                AppLog.info(.scan, "Scan finished in \(Int(s.duration))s: \(s.scanned) photos (\(progress.fullAnalyses) analysed, \(progress.printOnly) re-fingerprinted, \(progress.reusedFromCache) reused), \(s.groups) groups, \(s.deleteCandidates) delete candidates")
+            }
         } catch is CancellationError {
             stage = .cancelled
+            AppLog.warning(.scan, "Scan cancelled after \(progress.done)/\(progress.total) photos; cache kept")
         } catch {
             errorMessage = error.localizedDescription
             stage = .failed
+            AppLog.error(.scan, "Scan failed: \(error.localizedDescription)")
         }
     }
 

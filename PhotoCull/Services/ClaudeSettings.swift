@@ -26,11 +26,17 @@ final class ClaudeSettings {
     private static let modelKey = "claude.model"
 
     var isEnabled: Bool {
-        didSet { UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey) }
+        didSet {
+            UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey)
+            if isEnabled != oldValue { AppLog.info(.settings, "Claude tie-breaker \(isEnabled ? "enabled" : "disabled")") }
+        }
     }
 
     var model: ClaudeModel {
-        didSet { UserDefaults.standard.set(model.rawValue, forKey: Self.modelKey) }
+        didSet {
+            UserDefaults.standard.set(model.rawValue, forKey: Self.modelKey)
+            if model != oldValue { AppLog.info(.settings, "Claude model set to \(model.rawValue)") }
+        }
     }
 
     private(set) var hasKey: Bool
@@ -52,11 +58,13 @@ final class ClaudeSettings {
     func saveKey(_ key: String) throws {
         try KeychainStore.write(key, account: KeychainStore.claudeAPIKey)
         refreshKey()
+        AppLog.info(.settings, "Claude API key stored in Keychain")
     }
 
     func removeKey() {
         KeychainStore.delete(KeychainStore.claudeAPIKey)
         refreshKey()
+        AppLog.info(.settings, "Claude API key removed")
     }
 
     func apiKey() -> String? {

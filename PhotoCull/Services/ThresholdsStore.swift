@@ -10,7 +10,12 @@ final class ThresholdsStore {
     private static let key = "thresholds.v1"
 
     var thresholds: Thresholds {
-        didSet { save() }
+        didSet {
+            save()
+            if let change = Self.describeChange(from: oldValue, to: thresholds) {
+                AppLog.info(.settings, change)
+            }
+        }
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -28,6 +33,20 @@ final class ThresholdsStore {
     }
 
     private let defaults: UserDefaults
+
+    private static func describeChange(from a: Thresholds, to b: Thresholds) -> String? {
+        var parts: [String] = []
+        if a.similarityDistanceMax != b.similarityDistanceMax { parts.append("similarity \(a.similarityDistanceMax) → \(b.similarityDistanceMax)") }
+        if a.groupTimeGapSeconds != b.groupTimeGapSeconds { parts.append("time gap \(Int(a.groupTimeGapSeconds)) → \(Int(b.groupTimeGapSeconds))s") }
+        if a.tieBreakMargin != b.tieBreakMargin { parts.append("tie margin \(a.tieBreakMargin) → \(b.tieBreakMargin)") }
+        if a.minFaceAreaRatio != b.minFaceAreaRatio { parts.append("min face area \(a.minFaceAreaRatio) → \(b.minFaceAreaRatio)") }
+        if a.textHeavyCharCount != b.textHeavyCharCount { parts.append("text-heavy chars \(a.textHeavyCharCount) → \(b.textHeavyCharCount)") }
+        if a.whatsAppAlbumName != b.whatsAppAlbumName { parts.append("WhatsApp album “\(a.whatsAppAlbumName)” → “\(b.whatsAppAlbumName)”") }
+        if a.visionLongEdge != b.visionLongEdge { parts.append("vision edge \(a.visionLongEdge) → \(b.visionLongEdge)") }
+        if a.claudeImageLongEdge != b.claudeImageLongEdge { parts.append("Claude image edge \(a.claudeImageLongEdge) → \(b.claudeImageLongEdge)") }
+        if a.claudeMaxImagesPerGroup != b.claudeMaxImagesPerGroup { parts.append("Claude max images \(a.claudeMaxImagesPerGroup) → \(b.claudeMaxImagesPerGroup)") }
+        return parts.isEmpty ? nil : "Thresholds changed: " + parts.joined(separator: ", ")
+    }
 
     private func save() {
         if let data = try? JSONEncoder().encode(thresholds) {

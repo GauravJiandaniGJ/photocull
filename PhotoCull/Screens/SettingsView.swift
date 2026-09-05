@@ -82,6 +82,10 @@ struct SettingsView: View {
                          : "Optional. Without a key the tie-breaker is not offered anywhere in the app.")
                 }
 
+                Section("Activity") {
+                    NavigationLink("Activity log") { LogView() }
+                }
+
                 Section("Analysis cache") {
                     LabeledContent("Cached photos", value: cached.count, format: .number)
                     Button("Clear analysis cache", role: .destructive) { confirmClearCache = true }
@@ -163,8 +167,10 @@ struct SettingsView: View {
     }
 
     private func clearCache() {
+        let count = cached.count
         for record in cached { context.delete(record) }
         try? context.save()
+        AppLog.info(.settings, "Cleared analysis cache (\(count) photos)")
     }
 }
 

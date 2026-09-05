@@ -7,6 +7,8 @@ struct RootView: View {
     @State private var thresholds = ThresholdsStore()
     @State private var claude = ClaudeSettings()
     @State private var tieBreaker = TieBreakRunner()
+    @State private var navigation = AppNavigation()
+    @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
 
     /// DEBUG-only: `-skipPhotosGate` as a launch argument shows the tab shell without Photos
@@ -31,6 +33,14 @@ struct RootView: View {
         .environment(thresholds)
         .environment(claude)
         .environment(tieBreaker)
+        .environment(navigation)
+        .task {
+            AppLog.container = context.container
+            AppLog.prune()
+            let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+            let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+            AppLog.info(.app, "Launched PhotoCull \(version) (\(build))")
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { library.refreshAccess() }
         }

@@ -44,6 +44,12 @@ final class ScanSession {
     var thresholdsJSON: Data
     @Relationship(deleteRule: .cascade, inverse: \PhotoGroup.session) var groups: [PhotoGroup]
     @Relationship(deleteRule: .cascade, inverse: \Decision.session) var decisions: [Decision]
+    // Journey (spec §6 flow: Scan → Groups → Clutter → Apply), persisted so the user can
+    // leave and come back days later.
+    var groupsVisitedAt: Date?
+    var groupsReviewedAt: Date?
+    var clutterVisitedAt: Date?
+    var clutterReviewedAt: Date?
 
     init(id: UUID = UUID(), startDate: Date, endDate: Date, createdAt: Date = .now, status: String = ScanStatus.running, thresholdsJSON: Data) {
         self.id = id
@@ -146,9 +152,29 @@ final class AuditEntry {
     }
 }
 
+/// One line of the in-app activity log (Settings → Activity log).
+@Model
+final class LogEntry {
+    @Attribute(.unique) var id: UUID
+    var at: Date
+    /// info | warning | error
+    var level: String
+    /// app | scan | review | claude | apply | settings
+    var category: String
+    var message: String
+
+    init(id: UUID = UUID(), at: Date = .now, level: String, category: String, message: String) {
+        self.id = id
+        self.at = at
+        self.level = level
+        self.category = category
+        self.message = message
+    }
+}
+
 extension ModelContainer {
     static let photoCullSchema = Schema([
-        AssetRecord.self, ScanSession.self, PhotoGroup.self, Decision.self, AuditEntry.self,
+        AssetRecord.self, ScanSession.self, PhotoGroup.self, Decision.self, AuditEntry.self, LogEntry.self,
     ])
 
     static func photoCull(inMemory: Bool = false) throws -> ModelContainer {

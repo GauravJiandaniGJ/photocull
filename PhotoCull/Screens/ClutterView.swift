@@ -5,7 +5,7 @@ import SwiftUI
 /// Spec §6 Clutter: sectioned grid with checkmarks (checked = delete), select-all per section.
 struct ClutterView: View {
     @Query(sort: \ScanSession.createdAt, order: .reverse) private var sessions: [ScanSession]
-    @Environment(ScanController.self) private var scan
+    @Environment(AppNavigation.self) private var nav
     @Environment(\.modelContext) private var context
     @State private var selected: Decision?
 
@@ -67,7 +67,23 @@ struct ClutterView: View {
                 }
             }
             .navigationTitle("Clutter")
-            .onAppear { scan.reviewOpened = true }
+            .onAppear {
+                if let session, session.clutterVisitedAt == nil {
+                    session.clutterVisitedAt = .now
+                    try? context.save()
+                    AppLog.info(.review, "Opened Clutter for the first time (\(Journey(session: session).clutterCount) items)")
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if let session, session.status != ScanStatus.applied, !rows.isEmpty {
+                    NextStepBar(title: session.clutterReviewedAt == nil ? "Done with clutter · Next: Apply" : "Next: Apply") {
+                        session.clutterReviewedAt = .now
+                        try? context.save()
+                        AppLog.info(.review, "Clutter marked reviewed (\(Journey(session: session).clutterToDelete) to delete)")
+                        nav.tab = .apply
+                    }
+                }
+            }
             .sheet(item: $selected) { decision in
                 ClutterDetailSheet(decision: decision)
             }

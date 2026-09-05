@@ -46,6 +46,9 @@ struct ScanView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let session = sessions.first {
+                    JourneyCard(session: session)
+                }
                 Section("Date range") {
                     Picker("Range", selection: $presetRaw) {
                         ForEach(RangePreset.allCases) { Text($0.rawValue).tag($0.rawValue) }

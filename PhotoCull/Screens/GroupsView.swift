@@ -14,7 +14,8 @@ enum GroupFilter: String, CaseIterable, Identifiable {
 /// Spec §6 Groups: newest first, keeper in green, losers dimmed with a reason.
 struct GroupsView: View {
     @Query(sort: \ScanSession.createdAt, order: .reverse) private var sessions: [ScanSession]
-    @Environment(ScanController.self) private var scan
+    @Environment(AppNavigation.self) private var nav
+    @Environment(\.modelContext) private var context
     @State private var filter: GroupFilter = .all
     @State private var decisionsByID: [String: Decision] = [:]
 
@@ -70,7 +71,23 @@ struct GroupsView: View {
                 }
             }
             .navigationTitle("Groups")
-            .onAppear { scan.reviewOpened = true }
+            .onAppear {
+                if let session, session.groupsVisitedAt == nil {
+                    session.groupsVisitedAt = .now
+                    try? context.save()
+                    AppLog.info(.review, "Opened Groups for the first time (\(session.groups.count) groups)")
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if let session, session.status != ScanStatus.applied, !session.groups.isEmpty {
+                    NextStepBar(title: session.groupsReviewedAt == nil ? "Done with groups · Next: Clutter" : "Next: Clutter") {
+                        session.groupsReviewedAt = .now
+                        try? context.save()
+                        AppLog.info(.review, "Groups marked reviewed (\(Journey(session: session).editedGroupCount) changed by you)")
+                        nav.tab = .clutter
+                    }
+                }
+            }
             .navigationDestination(for: UUID.self) { id in
                 if let group = session?.groups.first(where: { $0.id == id }) {
                     GroupDetailView(group: group, decisions: decisionsByID)

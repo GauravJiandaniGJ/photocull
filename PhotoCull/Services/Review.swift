@@ -19,6 +19,7 @@ enum Review {
         if let d = decisions[id] { set(d, action: .keep, reason: keeperReason) }
         if let d = decisions[previous] { set(d, action: .delete, reason: removedReason) }
         save(context)
+        AppLog.info(.review, "Keeper changed in a \(group.memberIDs.count)-photo \(group.kind) group")
     }
 
     /// Flip keep/delete for a group member. The keeper cannot be flipped; pick another keeper first.
@@ -30,6 +31,7 @@ enum Review {
             set(decision, action: .delete, reason: removedReason)
         }
         save(context)
+        AppLog.info(.review, "\(decision.isDelete ? "Delete" : "Keep") set on a \(group == nil ? decision.category : "group") photo")
     }
 
     static func keepAll(in group: PhotoGroup, decisions: [String: Decision], context: ModelContext) {
@@ -38,6 +40,7 @@ enum Review {
             set(d, action: .keep, reason: keptReason)
         }
         save(context)
+        AppLog.info(.review, "Keep all in a \(group.memberIDs.count)-photo group")
     }
 
     static func deleteAllButKeeper(in group: PhotoGroup, decisions: [String: Decision], context: ModelContext) {
@@ -46,17 +49,21 @@ enum Review {
             set(d, action: .delete, reason: removedReason)
         }
         save(context)
+        AppLog.info(.review, "Delete all but keeper in a \(group.memberIDs.count)-photo group")
     }
 
     /// Clutter: explicit keep/delete for one asset.
     static func set(_ decision: Decision, to action: CullAction, context: ModelContext) {
         set(decision, action: action, reason: action == .delete ? removedReason : keptReason)
         save(context)
+        AppLog.info(.review, "\(action == .delete ? "Delete" : "Keep") set on a \(decision.category) item")
     }
 
     static func setAll(_ decisions: [Decision], to action: CullAction, context: ModelContext) {
         for d in decisions { set(d, action: action, reason: action == .delete ? removedReason : keptReason) }
         save(context)
+        let category = decisions.first?.category ?? "clutter"
+        AppLog.info(.review, "\(action == .delete ? "Select all" : "Deselect all") on \(decisions.count) \(category) items")
     }
 
     private static func set(_ decision: Decision, action: CullAction, reason: String) {

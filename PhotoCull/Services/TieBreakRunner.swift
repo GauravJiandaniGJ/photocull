@@ -51,6 +51,7 @@ final class TieBreakRunner {
         let scorer = Scorer(thresholds: thresholds)
         var changed = 0, confirmed = 0, failed = 0
         state = .running(done: 0, total: jobs.count)
+        AppLog.info(.claude, "Tie-break confirmed: \(jobs.count) groups, \(jobs.reduce(0) { $0 + $1.candidateIDs.count }) photos, model \(model.rawValue)")
 
         for (index, job) in jobs.enumerated() {
             do {
@@ -58,6 +59,7 @@ final class TieBreakRunner {
                 guard verdict.isConfident else {
                     job.group.claudeError = "Low confidence (\(Int((verdict.confidence * 100).rounded()))%): \(verdict.reason)"
                     failed += 1
+                    AppLog.warning(.claude, "Low confidence, keeper unchanged: \(verdict.reason)")
                     continue
                 }
                 let winner = job.candidateIDs[verdict.winner - 1]
@@ -67,19 +69,23 @@ final class TieBreakRunner {
                         keeper.reason = "Claude agrees: \(verdict.reason)"
                     }
                     confirmed += 1
+                    AppLog.info(.claude, "Agreed with keeper (Photo \(verdict.winner)): \(verdict.reason)")
                 } else {
                     apply(winner: winner, reason: verdict.reason, to: job.group, scorer: scorer, decisions: decisions)
                     changed += 1
+                    AppLog.info(.claude, "Keeper changed to Photo \(verdict.winner): \(verdict.reason)")
                 }
                 job.group.claudeError = nil
             } catch {
                 job.group.claudeError = error.localizedDescription
                 failed += 1
+                AppLog.error(.claude, "Tie-break failed: \(error.localizedDescription)")
             }
             try? context.save()
             state = .running(done: index + 1, total: jobs.count)
         }
         state = .finished(changed: changed, confirmed: confirmed, failed: failed)
+        AppLog.info(.claude, "Tie-break finished: \(changed) changed, \(confirmed) agreed, \(failed) failed")
     }
 
     private func apply(winner: String, reason: String, to group: PhotoGroup, scorer: Scorer, decisions: [String: Decision]) {
