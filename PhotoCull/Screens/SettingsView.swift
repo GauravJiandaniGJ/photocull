@@ -76,11 +76,16 @@ struct SettingsView: View {
                         Text("No scans yet").foregroundStyle(.secondary)
                     } else {
                         ForEach(sessions, id: \.id) { s in
-                            VStack(alignment: .leading) {
+                            let row = VStack(alignment: .leading) {
                                 Text(s.startDate, format: .dateTime.day().month()) + Text(" – ") + Text(s.endDate, format: .dateTime.day().month().year())
                                 Text("\(s.status.capitalized) · \(s.groups.count) groups · \(s.decisions.count) decisions")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
+                            }
+                            if s.status == ScanStatus.applied {
+                                NavigationLink { AuditDetailView(session: s) } label: { row }
+                            } else {
+                                row
                             }
                         }
                     }

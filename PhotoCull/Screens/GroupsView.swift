@@ -14,6 +14,7 @@ enum GroupFilter: String, CaseIterable, Identifiable {
 /// Spec §6 Groups: newest first, keeper in green, losers dimmed with a reason.
 struct GroupsView: View {
     @Query(sort: \ScanSession.createdAt, order: .reverse) private var sessions: [ScanSession]
+    @Environment(ScanController.self) private var scan
     @State private var filter: GroupFilter = .all
     @State private var decisionsByID: [String: Decision] = [:]
 
@@ -66,6 +67,7 @@ struct GroupsView: View {
                 }
             }
             .navigationTitle("Groups")
+            .onAppear { scan.reviewOpened = true }
             .navigationDestination(for: UUID.self) { id in
                 if let group = session?.groups.first(where: { $0.id == id }) {
                     GroupDetailView(group: group, decisions: decisionsByID)

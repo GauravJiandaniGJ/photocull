@@ -75,6 +75,8 @@ final class ScanController {
     private(set) var summary: Summary?
     private(set) var calibration: Calibration?
     private(set) var errorMessage: String?
+    /// Apply stays disabled until Groups or Clutter has been opened for the current scan (spec §6).
+    var reviewOpened = false
 
     let extractor = VisionFeatureExtractor()
     private let container: ModelContainer
@@ -102,6 +104,7 @@ final class ScanController {
         errorMessage = nil
         startedAt = .now
         finishedAt = nil
+        reviewOpened = false
         UIApplication.shared.isIdleTimerDisabled = true
         task = Task { [weak self] in
             await self?.run(options)

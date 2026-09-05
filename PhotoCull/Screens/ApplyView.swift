@@ -2,34 +2,121 @@ import PhotoCullCore
 import SwiftData
 import SwiftUI
 
-/// The ONLY screen that may ever call `PHAssetChangeRequest.deleteAssets` (safety rule 1).
-/// The delete path itself is milestone 4; until then the button stays disabled.
+/// Read-only summary plus the one button that moves photos to Recently Deleted (spec §6, §8).
 struct ApplyView: View {
     @Query(sort: \ScanSession.createdAt, order: .reverse) private var sessions: [ScanSession]
+    @Environment(\.modelContext) private var context
+    @Environment(ScanController.self) private var scan
+    @State private var apply = ApplyController()
+    @State private var confirming = false
 
-    private var decisions: [Decision] { sessions.first?.decisions ?? [] }
-    private var toDelete: [Decision] { decisions.filter { $0.action == CullAction.delete.rawValue } }
-    private var kept: Int { decisions.count - toDelete.count }
+    private var session: ScanSession? { sessions.first }
+    private var decisions: [Decision] { session?.decisions ?? [] }
+    private var toDelete: [Decision] { decisions.filter { $0.isDelete && !$0.isProtected } }
+    private var fromGroups: Int { toDelete.filter { $0.groupID != nil }.count }
+    private var isApplied: Bool { session?.status == ScanStatus.applied }
+
+    private func clutterCount(_ category: AssetCategory) -> Int {
+        toDelete.filter { $0.groupID == nil && $0.category == category.rawValue }.count
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("This session") {
-                    LabeledContent("To delete", value: toDelete.count, format: .number)
-                    LabeledContent("Kept", value: kept, format: .number)
-                }
-                Section {
-                    Button(role: .destructive) {
-                    } label: {
-                        Label("Move \(toDelete.count) photos to Recently Deleted", systemImage: "trash")
-                            .frame(maxWidth: .infinity)
+                if let session {
+                    Section("Session") {
+                        LabeledContent("Range") {
+                            Text(session.startDate, format: .dateTime.day().month()) + Text(" – ") + Text(session.endDate, format: .dateTime.day().month().year())
+                        }
+                        LabeledContent("Scanned", value: session.createdAt, format: .dateTime.day().month().hour().minute())
+                        LabeledContent("Status", value: session.status.capitalized)
                     }
-                    .disabled(true)
-                } footer: {
-                    Text("Deleted photos go to Photos → Albums → Recently Deleted and can be restored for 30 days. Apply is built in milestone 4.")
+
+                    Section("To delete") {
+                        LabeledContent("From groups", value: fromGroups, format: .number)
+                        LabeledContent("Screenshots", value: clutterCount(.screenshot), format: .number)
+                        LabeledContent("Received (text/documents)", value: clutterCount(.receivedUtility), format: .number)
+                        LabeledContent("Received photos", value: clutterCount(.receivedPhoto), format: .number)
+                        LabeledContent("Documents/receipts", value: clutterCount(.utility), format: .number)
+                        LabeledContent("Total") { Text(toDelete.count, format: .number).bold() }
+                    }
+
+                    Section("Kept") {
+                        LabeledContent("Kept", value: decisions.count - toDelete.count, format: .number)
+                        LabeledContent("Favorites protected", value: decisions.filter(\.isProtected).count, format: .number)
+                        LabeledContent("Your overrides", value: decisions.filter(\.isUserDecision).count, format: .number)
+                    }
+
+                    if isApplied {
+                        Section {
+                            NavigationLink("Audit log and export") { AuditDetailView(session: session) }
+                        } header: {
+                            Text("Applied")
+                        } footer: {
+                            Text("Undo within 30 days: Photos → Albums → Recently Deleted. Run a new scan to continue.")
+                        }
+                    } else {
+                        applySection(session)
+                    }
+                } else {
+                    ContentUnavailableView("Nothing to apply", systemImage: "trash", description: Text("Run a scan and review the results first."))
                 }
             }
             .navigationTitle("Apply")
+            .confirmationDialog(
+                "Move \(toDelete.count.formatted()) photos to Recently Deleted?",
+                isPresented: $confirming,
+                titleVisibility: .visible
+            ) {
+                Button("Move \(toDelete.count.formatted()) photos", role: .destructive) {
+                    guard let session else { return }
+                    Task { await apply.apply(session: session, context: context) }
+                }
+            } message: {
+                Text("iOS will ask once more. Photos stay in Recently Deleted for 30 days; favorites and anything changed since the scan are skipped.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func applySection(_ session: ScanSession) -> some View {
+        Section {
+            Button(role: .destructive) {
+                confirming = true
+            } label: {
+                HStack {
+                    if apply.isBusy { ProgressView().padding(.trailing, 6) }
+                    Label("Move \(toDelete.count.formatted()) photos to Recently Deleted", systemImage: "trash")
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .disabled(!scan.reviewOpened || toDelete.isEmpty || apply.isBusy)
+        } footer: {
+            if !scan.reviewOpened {
+                Text("Open Groups or Clutter first to review the decisions.")
+            } else if toDelete.isEmpty {
+                Text("No delete candidates in this session.")
+            } else {
+                Text("One system dialog follows. Nothing is removed permanently: Recently Deleted keeps photos for 30 days.")
+            }
+        }
+        switch apply.state {
+        case .cancelled:
+            Section { Label("Cancelled in the system dialog. Nothing was deleted.", systemImage: "xmark.circle") }
+        case .failed(let message):
+            Section { Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
+        case .done:
+            if let r = apply.result {
+                Section {
+                    Label("Moved \(r.deleted.formatted()) photos to Recently Deleted", systemImage: "checkmark.circle").foregroundStyle(.green)
+                    if r.skippedMissing + r.skippedModified + r.skippedFavorite > 0 {
+                        Text("Skipped \(r.skippedMissing) missing, \(r.skippedModified) changed since analysis, \(r.skippedFavorite) favorited since.")
+                            .font(.footnote)
+                    }
+                }
+            }
+        default:
+            EmptyView()
         }
     }
 }

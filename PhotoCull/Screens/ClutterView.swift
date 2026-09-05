@@ -5,6 +5,7 @@ import SwiftUI
 /// Spec §6 Clutter: sectioned grid with checkmarks (checked = delete), select-all per section.
 struct ClutterView: View {
     @Query(sort: \ScanSession.createdAt, order: .reverse) private var sessions: [ScanSession]
+    @Environment(ScanController.self) private var scan
     @Environment(\.modelContext) private var context
     @State private var selected: Decision?
 
@@ -66,6 +67,7 @@ struct ClutterView: View {
                 }
             }
             .navigationTitle("Clutter")
+            .onAppear { scan.reviewOpened = true }
             .sheet(item: $selected) { decision in
                 ClutterDetailSheet(decision: decision)
             }

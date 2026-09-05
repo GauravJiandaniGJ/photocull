@@ -10,12 +10,14 @@ Personal iOS photo-culling app for two phones (iPhone 17 Pro Max primary, iPhone
 
 ## Current state
 
-Milestone 1 (§11) is built and installed on the 17 Pro Max; milestones 2–6 are still to do.
+Milestones 1–4 (§11) are built and installed on the 17 Pro Max; milestones 5 (Claude tie-breaker) and 6 (second phone, 6-month scans) are still to do.
 
 - `Packages/PhotoCullCore` is complete against §5: Thresholds, AssetMetrics, Classifier, Grouper, Scorer, Planner, TieBreakVerdict, with 55 passing tests covering §10.
 - Milestone 1 in the app target: `VisionFeatureExtractor` (feature print, aesthetics, face capture quality, CIDetector eyes/smile, EXIF probe, gated OCR), `ScanController` (fetch → cache lookup → 3-wide TaskGroup → Planner → SwiftData session), scan progress and summary on the Scan tab, Debug → raw metrics table, Calibrate histogram with threshold slider and group preview, CSV export, per-request timings.
+- Milestones 2–3: `GroupsView` (filters, strips, keeper/delete badges) → `GroupDetailView` (pager, score breakdown, Make keeper, toggle, Keep all, Delete all but keeper); `ClutterView` sectioned grid with Select/Deselect all and a detail sheet. All overrides go through `Review` (Services/Review.swift) and are marked `source = user`; `PersistenceActor.saveSession` carries user decisions and user-chosen keepers into the next scan.
+- Milestone 4: `ApplyController.apply` is the single `deleteAssets` call site; it re-fetches candidates, skips missing/changed/favorited assets, writes an `AuditEntry`, marks the session `applied`. `AuditDetailView` + `AuditExport` produce the JSON/CSV log (from Apply and from Settings → scan history). Apply is gated on `ScanController.reviewOpened`.
 - Also in place: Photos permission gate, five-tab shell, SwiftData models (§7), Settings (thresholds, Keychain-backed Claude key, cache clear, scan history).
-- Not built yet: Groups/Clutter review UI (milestones 2–3), Apply/delete path and audit export (4), `ClaudeTieBreaker` HTTP client (5). The Apply button stays disabled until milestone 4. Carrying user overrides across re-scans is a milestone 2 concern.
+- Not built yet: `ClaudeTieBreaker` HTTP client (5); second-phone install and 6-month performance pass (6).
 
 ## Commands
 
@@ -73,7 +75,7 @@ Things that are easy to get wrong across files:
 
 ## Safety rules (§8, non-negotiable)
 
-- `PHAssetChangeRequest.deleteAssets` is called from exactly one place: the Apply screen's confirmed action, as a single `performChanges` call.
+- `PHAssetChangeRequest.deleteAssets` is called from exactly one place: `ApplyController.apply`, reached only from the Apply screen's confirmed action, as a single `performChanges` call. `grep -rn deleteAssets PhotoCull` must return that one line.
 - Favorites are never delete candidates, regardless of group overrides. `Classification.isProtected` carries this; `Planner` already keeps a favorite that loses inside a group.
 - Only assets with a delete `Decision` in the current session are deleted; re-fetch by `localIdentifier` right before deletion and skip anything missing or modified since analysis.
 - Groups never have size 1 and never have zero keepers (`ProposedGroup` preconditions this).
