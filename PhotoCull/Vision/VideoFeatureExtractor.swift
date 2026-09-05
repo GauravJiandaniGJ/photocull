@@ -47,29 +47,13 @@ final class VideoFeatureExtractor: @unchecked Sendable {
         let resources = PHAssetResource.assetResources(for: asset)
         let fileUTI = (resources.first { $0.type == .video } ?? resources.first)?.uniformTypeIdentifier ?? "com.apple.quicktime-movie"
 
-        // Timed inline: AVAsset is not Sendable, so it must not cross a closure boundary.
         let loadStart = ContinuousClock.now
-        let avAsset = await Self.localAVAsset(for: asset)
+        let facts = await Self.containerFacts(for: asset, duration: info.duration)
         record("videoLoad", loadStart.duration(to: .now))
-        var fileSize: Int64 = 0
-        var hasCamera: Bool? = nil
-        var sampled = false
-
-        if let avAsset {
-            if let url = (avAsset as? AVURLAsset)?.url,
-               let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
-                fileSize = Int64(size)
-            }
-            if let items = try? await avAsset.load(.metadata) {
-                let names = items.compactMap { $0.commonKey?.rawValue.lowercased() } + items.compactMap { $0.identifier?.rawValue.lowercased() }
-                hasCamera = names.contains { $0.hasSuffix("make") || $0.hasSuffix("model") || $0.contains("quicktime.make") || $0.contains("quicktime.model") }
-            }
-            let frameStart = ContinuousClock.now
-            let observations = await Self.framePrints(for: avAsset, duration: info.duration)
-            record("videoFrames", frameStart.duration(to: .now))
-            sampled = !observations.isEmpty
-            if sampled { prints.with { $0[info.id] = observations } }
-        }
+        let fileSize = facts.fileSize
+        let hasCamera = facts.hasCameraMetadata
+        let sampled = !facts.prints.isEmpty
+        if sampled { prints.with { $0[info.id] = facts.prints } }
         if mode == .featurePrintOnly { return nil }
 
         let w = info.pixelWidth, h = info.pixelHeight
@@ -92,39 +76,55 @@ final class VideoFeatureExtractor: @unchecked Sendable {
 
     // MARK: Helpers
 
-    private static func localAVAsset(for asset: PHAsset) async -> AVAsset? {
+    private struct ContainerFacts: Sendable {
+        var fileSize: Int64 = 0
+        var hasCameraMetadata: Bool? = nil
+        var prints: [FeaturePrintObservation] = []
+    }
+
+    /// Everything that needs the AVAsset, done in one place so the (non-Sendable) asset never
+    /// crosses a function boundary: file size, camera make/model, and frame feature prints
+    /// at 10 %, 50 % and 90 % of the duration (just the middle for very short clips).
+    private static func containerFacts(for asset: PHAsset, duration: Double) async -> ContainerFacts {
+        var facts = ContainerFacts()
         let options = PHVideoRequestOptions()
         options.isNetworkAccessAllowed = false
         options.deliveryMode = .highQualityFormat
         options.version = .current
         let once = Locked(false)
-        return await withCheckedContinuation { (continuation: CheckedContinuation<AVAsset?, Never>) in
+        let avAsset: AVAsset? = await withCheckedContinuation { (continuation: CheckedContinuation<AVAsset?, Never>) in
             PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, _ in
                 if once.with({ done -> Bool in defer { done = true }; return !done }) {
                     continuation.resume(returning: avAsset)
                 }
             }
         }
-    }
+        guard let avAsset else { return facts }
 
-    /// Feature prints at 10 %, 50 % and 90 % of the duration (just the middle for very short clips).
-    private static func framePrints(for avAsset: AVAsset, duration: Double) async -> [FeaturePrintObservation] {
+        if let url = (avAsset as? AVURLAsset)?.url,
+           let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+            facts.fileSize = Int64(size)
+        }
+        if let items = try? await avAsset.load(.metadata) {
+            let names = items.compactMap { $0.commonKey?.rawValue.lowercased() } + items.compactMap { $0.identifier?.rawValue.lowercased() }
+            facts.hasCameraMetadata = names.contains { $0.hasSuffix("make") || $0.hasSuffix("model") || $0.contains("quicktime.make") || $0.contains("quicktime.model") }
+        }
+
         let generator = AVAssetImageGenerator(asset: avAsset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 512, height: 512)
         generator.requestedTimeToleranceBefore = CMTime(seconds: 0.5, preferredTimescale: 600)
         generator.requestedTimeToleranceAfter = CMTime(seconds: 0.5, preferredTimescale: 600)
         let fractions: [Double] = duration < 2 ? [0.5] : [0.1, 0.5, 0.9]
-        var out: [FeaturePrintObservation] = []
         for fraction in fractions {
             let time = CMTime(seconds: max(0, duration * fraction), preferredTimescale: 600)
             guard let frame = try? await generator.image(at: time) else { continue }
             let handler = ImageRequestHandler(frame.image)
             if let print = try? await handler.perform(GenerateImageFeaturePrintRequest()) {
-                out.append(print)
+                facts.prints.append(print)
             }
         }
-        return out
+        return facts
     }
 
     private func record(_ name: String, _ duration: Duration) {
