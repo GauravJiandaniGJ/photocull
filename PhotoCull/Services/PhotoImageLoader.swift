@@ -17,6 +17,12 @@ enum PhotoImageLoader {
         return await request(asset: asset, size: target, contentMode: .aspectFit, options: options, manager: .default())
     }
 
+    /// Large image for the review pager, by local identifier.
+    static func image(id: String, longEdge: CGFloat) async -> UIImage? {
+        guard let asset = PhotoLibraryService.asset(withID: id) else { return nil }
+        return await analysisImage(for: asset, longEdge: longEdge)
+    }
+
     /// Square UI thumbnail through the caching manager.
     static func thumbnail(id: String, side: CGFloat = 256) async -> UIImage? {
         guard let asset = PhotoLibraryService.asset(withID: id) else { return nil }

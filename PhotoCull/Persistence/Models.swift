@@ -1,4 +1,5 @@
 import Foundation
+import PhotoCullCore
 import SwiftData
 
 // Spec §7. Scalars only: feature prints never touch the store.
@@ -68,18 +69,28 @@ final class PhotoGroup {
     var isTie: Bool
     var claudeReason: String?
     var claudeError: String?
+    /// `DecisionSource` raw value for the keeper choice: auto | user | claude. A user-chosen
+    /// keeper is carried over to the same group on later scans.
+    var keeperSource: String = DecisionSource.auto.rawValue
+    /// Creation date of the earliest member, for newest-first ordering.
+    var earliestDate: Date = Date.distantPast
     var session: ScanSession?
 
-    init(id: UUID = UUID(), kind: String, memberIDs: [String], keeperID: String, scoresJSON: Data, isTie: Bool, claudeReason: String? = nil, claudeError: String? = nil) {
+    init(id: UUID = UUID(), kind: String, memberIDs: [String], keeperID: String, scoresJSON: Data, isTie: Bool, keeperSource: String = DecisionSource.auto.rawValue, earliestDate: Date = .distantPast, claudeReason: String? = nil, claudeError: String? = nil) {
         self.id = id
         self.kind = kind
         self.memberIDs = memberIDs
         self.keeperID = keeperID
         self.scoresJSON = scoresJSON
         self.isTie = isTie
+        self.keeperSource = keeperSource
+        self.earliestDate = earliestDate
         self.claudeReason = claudeReason
         self.claudeError = claudeError
     }
+
+    var scores: [MemberScore] { (try? JSONDecoder().decode([MemberScore].self, from: scoresJSON)) ?? [] }
+    var isUserKeeper: Bool { keeperSource == DecisionSource.user.rawValue }
 }
 
 @Model
@@ -94,9 +105,13 @@ final class Decision {
     var groupID: UUID?
     /// `AssetCategory` raw value.
     var category: String
+    /// Favorite: never a delete candidate, whatever the user toggles (safety rule 2).
+    var isProtected: Bool = false
+    /// Asset creation date, for newest-first ordering in review screens.
+    var creationDate: Date = Date.distantPast
     var session: ScanSession?
 
-    init(id: UUID = UUID(), assetID: String, action: String, source: String, reason: String, groupID: UUID? = nil, category: String) {
+    init(id: UUID = UUID(), assetID: String, action: String, source: String, reason: String, groupID: UUID? = nil, category: String, isProtected: Bool = false, creationDate: Date = .distantPast) {
         self.id = id
         self.assetID = assetID
         self.action = action
@@ -104,7 +119,12 @@ final class Decision {
         self.reason = reason
         self.groupID = groupID
         self.category = category
+        self.isProtected = isProtected
+        self.creationDate = creationDate
     }
+
+    var isDelete: Bool { action == CullAction.delete.rawValue }
+    var isUserDecision: Bool { source == DecisionSource.user.rawValue }
 }
 
 @Model

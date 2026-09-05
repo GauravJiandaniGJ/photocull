@@ -222,8 +222,9 @@ final class ScanController {
 
             // 5. Persist the session for the review screens.
             stage = .saving
+            let dates = Dictionary(allMetrics.map { ($0.id, $0.creationDate) }, uniquingKeysWith: { a, _ in a })
             let sessionID = try await persistence.saveSession(
-                start: options.start, end: options.end, thresholds: thresholds, plan: plan, status: ScanStatus.completed
+                start: options.start, end: options.end, thresholds: thresholds, plan: plan, dates: dates, status: ScanStatus.completed
             )
             summary = Self.summarize(plan, sessionID: sessionID, scanned: infos.count, since: startedAt)
             stage = .completed
