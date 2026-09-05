@@ -34,17 +34,20 @@ struct GroupDetailView: View {
                 .frame(height: 440)
                 .background(Color.black)
 
-                HStack(spacing: 8) {
-                    ForEach(group.memberIDs, id: \.self) { id in
-                        MemberThumbnail(id: id, isKeeper: id == group.keeperID, decision: decisions[id], side: 56)
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .strokeBorder(id == selection ? Color.accentColor : Color.clear, lineWidth: 2)
-                            }
-                            .onTapGesture { selection = id }
+                // Scrollable, so a 14-photo group cannot widen the panel and push the text off-screen.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(group.memberIDs, id: \.self) { id in
+                            MemberThumbnail(id: id, isKeeper: id == group.keeperID, decision: decisions[id], side: 56)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(id == selection ? Color.accentColor : Color.clear, lineWidth: 2)
+                                }
+                                .onTapGesture { selection = id }
+                        }
                     }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
 
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
@@ -66,8 +69,10 @@ struct GroupDetailView: View {
                     }
                     actions
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .navigationTitle("\(index + 1) of \(group.memberIDs.count)")
         .navigationBarTitleDisplayMode(.inline)
