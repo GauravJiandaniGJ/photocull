@@ -11,7 +11,9 @@ main dev loop; the simulator is for Core tests and layout only (see `sim-qa`).
 
 ## 1. Preconditions (once per Mac / phone)
 - Xcode is signed in to the paid team `D4U39723T4` (Xcode → Settings → Accounts). Automatic
-  signing + `-allowProvisioningUpdates` then registers the device and makes the profile.
+  signing + `-allowProvisioningUpdates -allowProvisioningDeviceRegistration` then registers
+  the device on the portal and regenerates the team profile. Without the second flag the
+  first build on a new phone fails with "Device isn't registered in your developer account".
 - The phone is paired and trusted: plug in, unlock, tap Trust, then Xcode → Window → Devices
   shows it. Enable Settings → Privacy & Security → Developer Mode (iOS 16+; phone reboots).
 - After the first install, the phone may ask to trust the developer:

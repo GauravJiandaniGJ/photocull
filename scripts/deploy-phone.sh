@@ -41,7 +41,7 @@ fi
 
 xcodebuild -project PhotoCull.xcodeproj -scheme PhotoCull -configuration Debug \
     -destination "platform=iOS,id=$DEVICE_UDID" \
-    -allowProvisioningUpdates \
+    -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
     -derivedDataPath build/DerivedData \
     build | tail -5
 
