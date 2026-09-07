@@ -4,7 +4,7 @@ On-device photo culling for iPhone. Scan a date range, group bursts and re-takes
 
 No server, no account, no iCloud, no analytics. The only network call in the app is an optional, off-by-default Claude tie-breaker that you have to turn on, give a key to, and confirm per batch.
 
-Built for two phones (an iPhone 17 Pro Max on iOS 27 and an iPhone 15 Pro on iOS 26) in a couple of days with [Claude Code](https://claude.com/claude-code), spec first. The write-up is in [`docs/ARTICLE.md`](docs/ARTICLE.md).
+Built spec first for two phones (an iPhone 17 Pro Max on iOS 27 and an iPhone 15 Pro on iOS 26). The write-up is in [`docs/ARTICLE.md`](docs/ARTICLE.md).
 
 ![Six stages, two layers](docs/images/stages.png)
 
