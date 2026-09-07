@@ -65,7 +65,7 @@ PHOTOCULL_SPEC.md          the spec the app was built from (section numbers are 
 docs/                      article and figures
 ```
 
-The Core package never imports UIKit, Vision, PhotoKit or SwiftData. `Planner(thresholds:).plan(metrics:distance:)` takes metrics plus a `(id, id) -> Float?` distance closure and returns classifications, scored groups and one proposed decision per asset. That boundary is what makes the decision logic testable with synthetic fixtures.
+The full pipeline, stage by stage, is in [`docs/images/pipeline.png`](docs/images/pipeline.png). The Core package never imports UIKit, Vision, PhotoKit or SwiftData. `Planner(thresholds:).plan(metrics:distance:)` takes metrics plus a `(id, id) -> Float?` distance closure and returns classifications, scored groups and one proposed decision per asset. That boundary is what makes the decision logic testable with synthetic fixtures.
 
 ```mermaid
 flowchart LR
