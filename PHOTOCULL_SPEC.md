@@ -227,7 +227,7 @@ Feature prints are held in memory for the duration of a scan only. Everything el
 
 ## 9. Project setup
 
-- Xcode 16+ (Xcode 26 is fine). Deployment target iOS 18.0. Bundle ID `com.<her-team-name>.photocull`, Team = wife's Apple Developer team, automatic signing.
+- Xcode 16+ (Xcode 26 is fine). Deployment target iOS 18.0. Bundle ID `com.<team-name>.photocull`, Team = the paid Apple Developer team, automatic signing.
 - Generate the project with XcodeGen (`brew install xcodegen`) from a `project.yml` at the repo root so it can be regenerated from the CLI; targets: `PhotoCull` (app), `PhotoCullCoreTests`, plus the local package `Packages/PhotoCullCore`.
 - Info.plist: `NSPhotoLibraryUsageDescription` = "PhotoCull analyses your photos on this phone to find near-duplicates and clutter, and deletes only what you approve." No background modes, no other entitlements.
 - Build check: `xcodebuild -scheme PhotoCull -destination 'generic/platform=iOS' -allowProvisioningUpdates build`. Core tests: `xcodebuild test -scheme PhotoCullCore -destination 'platform=iOS Simulator,name=iPhone 16'`.

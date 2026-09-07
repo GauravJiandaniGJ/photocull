@@ -11,6 +11,9 @@ description: Build and run PhotoCull in the iOS Simulator and run PhotoCullCore 
 - Not trustworthy for: aesthetics scores, face capture quality, feature-print distances,
   scan timing. Vision requests run but the numbers differ from hardware; judge those with
   `phone-deploy`. The simulator library also lacks bursts, HEIC and WhatsApp albums.
+- On this Mac (Xcode 26.6, iOS 26.5 simruntime, arm64 build) every Vision request fails with
+  `Failed to create espresso context`, so a scan analyses 0 photos. Pinning requests to the
+  CPU compute device does not help. Scan results, Groups and Clutter screenshots need a phone.
 
 ## 1. Tests without a simulator
 ```bash
